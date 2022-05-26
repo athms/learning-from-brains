@@ -1,0 +1,979 @@
+#!/usr/bin/env python3
+
+import os
+import argparse
+from typing import Dict
+import json
+from datetime import datetime
+from numpy import random
+import pandas as pd
+import numpy as np
+from torch import manual_seed
+import sys
+script_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, os.path.join(script_path, '../'))
+from src.batcher import make_batcher
+from src.decoder import make_decoder
+from src.embedder import make_embedder
+from src.trainer import make_trainer, Trainer
+from src.unembedder import make_unembedder
+from src.model import Model
+from src import tools
+
+
+def train(config: Dict=None) -> Trainer:
+    """Train according to config.
+        -> see get_args() below!
+    """
+    
+    if config is None:
+        config = get_config()
+
+    if config['do_train']:
+        os.makedirs(
+            config["log_dir"],
+            exist_ok=True
+        )
+
+        resume_path = str(config["resume_from"]) if config["resume_from"] is not None else None
+        
+        if resume_path is not None:
+            # load train config
+            config_filepath = os.path.join(
+                config["resume_from"],
+                'train_config.json'
+            )
+
+            if os.path.isfile(config_filepath):
+                print(
+                    f'Loading training config from {config_filepath}'
+                )
+
+                with open(config_filepath, 'r') as f:
+                    config = json.load(f)
+
+            else:
+
+                with open(config_filepath, 'w') as f:
+                    json.dump(config, f, indent=2)
+            
+            # identify last training checkpoint
+            checkpoints = [
+                int(p.split('checkpoint-')[1])
+                for p in os.listdir(resume_path)
+                if 'checkpoint-' in p
+                and os.path.isdir(os.path.join(resume_path, p))
+            ]
+            last_checkpoint = max(checkpoints)
+            print(
+                f'Resuming training from checkpoint-{last_checkpoint} in {resume_path}'
+            )
+            config["resume_from"] = os.path.join(resume_path, f'checkpoint-{last_checkpoint}')
+
+        else:
+            # save train config
+            config_filepath = os.path.join(
+                config["log_dir"],
+                'train_config.json'
+            )
+            
+            with open(config_filepath, 'w') as f:
+                json.dump(config, f, indent=2)
+
+            config["resume_from"] = None
+
+    assert config["training_style"] in {
+        'BERT',
+        'CSM',
+        'NetBERT',
+        'autoencoder',
+        'decoding'
+    }, f'{config["training_style"]} is not supported.'
+    assert config["architecture"] in {
+        'BERT',
+        'NetBERT',
+        'GPT',
+        'autoencoder',
+        'PretrainedGPT2',
+        'PretrainedBERT',
+        'LogisticRegression'
+    }, f'{config["architecture"]} is not supported.'
+
+    path_tarfile_paths_split = os.path.join(
+        config["log_dir"],
+        'tarfile_paths_split.json'
+    )
+
+    if config['set_seed']:
+        random.seed(config["seed"])
+        manual_seed(config["seed"])
+
+    if not os.path.isfile(path_tarfile_paths_split): 
+        tarfile_paths = tools.data.grab_tarfile_paths(config["data"])
+        tarfile_paths_split = tools.data.split_tarfile_paths_train_val(
+            tarfile_paths=tarfile_paths,
+            frac_val_per_dataset=config["frac_val_per_dataset"],
+            n_val_subjects_per_dataset=config["n_val_subjects_per_dataset"],
+            n_test_subjects_per_dataset=config["n_test_subjects_per_dataset"],
+            n_train_subjects_per_dataset=config["n_train_subjects_per_dataset"],
+            seed=config["seed"] if config['set_seed'] else np.random.choice(range(1, 100000))
+        )
+        print(
+            f'Saving tarfile split to {path_tarfile_paths_split}'
+        )
+
+        with open(path_tarfile_paths_split, 'w') as f:
+            json.dump(tarfile_paths_split, f, indent=2)
+
+    else:
+        print(
+            f'Loading tarfile split from {path_tarfile_paths_split}'
+        )
+
+        with open(path_tarfile_paths_split, 'r') as f:
+            tarfile_paths_split = json.load(f)
+
+    train_tarfile_paths = tarfile_paths_split['train']
+    validation_tarfile_paths = tarfile_paths_split['validation']
+    test_tarfile_paths = tarfile_paths_split['test'] if 'test' in tarfile_paths_split else None
+    assert all(
+        os.path.isfile(f) for f in train_tarfile_paths
+    ), f'Some of the training tarfiles in {path_tarfile_paths_split} do not exist.'
+    assert all(
+        os.path.isfile(f) for f in validation_tarfile_paths
+    ), f'Some of the validation tarfiles in {path_tarfile_paths_split} do not exist.'
+    if test_tarfile_paths is not None:
+        assert all(
+            os.path.isfile(f) for f in test_tarfile_paths
+        ), f'Some of the test tarfiles in {path_tarfile_paths_split} do not exist.'
+
+    batcher = make_batcher(
+        training_style=config["training_style"],
+        sample_random_seq=config["sample_random_seq"],
+        seq_min=config["seq_min"],
+        seq_max=config["seq_max"],
+        bert_seq_gap_min=config["bert_seq_gap_min"],
+        bert_seq_gap_max=config["bert_seq_gap_max"],
+        decoding_target=config["decoding_target"],
+        bold_dummy_mode=config["bold_dummy_mode"]
+    )
+    train_dataset = batcher.dataset(
+        tarfiles=train_tarfile_paths,
+        length=config["training_steps"]*config["per_device_training_batch_size"]
+    )
+    validation_dataset = batcher.dataset(
+        tarfiles=validation_tarfile_paths,
+        length=config["validation_steps"]*config["per_device_validation_batch_size"]
+    )
+    if test_tarfile_paths is not None:
+        test_dataset = batcher.dataset(
+            tarfiles=test_tarfile_paths,
+            length=config["test_steps"]*config["per_device_validation_batch_size"]
+        )
+    else:
+        test_dataset = None
+
+    def model_init(params=None):
+        model_config = dict(config)
+
+        if params is not None:
+            model_config.update(params)
+
+        return make_model(model_config)
+
+    if config['do_train']:
+        tools.configure_wandb(
+            config=config,
+            entity='athms',
+            run_id=config["run_name"],
+            project=config["wandb_project_name"],
+            mode=config["wandb_mode"]
+        )
+
+    trainer = make_trainer(
+        model_init=model_init,
+        training_style=config["training_style"],
+        wandb_mode=config["wandb_mode"],
+        run_name=config["run_name"],
+        output_dir=config["log_dir"],
+        train_dataset=train_dataset,
+        validation_dataset=validation_dataset,
+        per_device_train_batch_size=config["per_device_training_batch_size"],
+        per_device_eval_batch_size=config["per_device_validation_batch_size"],
+        dataloader_num_workers=config["num_workers"],
+        optim=config["optim"],
+        learning_rate=config["learning_rate"],
+        weight_decay=config["weight_decay"],
+        adam_beta1=config["adam_beta_1"],
+        adam_beta2=config["adam_beta_1"],
+        adam_epsilon=config["adam_epsilon"],
+        max_grad_norm=config["max_grad_norm"],
+        lr_scheduler_type=config["lr_scheduler"],
+        warmup_ratio=config["warmup_ratio"],
+        max_steps=config["training_steps"],
+        save_steps=config["log_every_n_steps"],
+        logging_steps=config["log_every_n_steps"],
+        seed=config["seed"] if config['set_seed'] else np.random.choice(range(1, 100000)),
+        fp16=config["fp16"],
+        deepspeed=config["deepspeed"],
+    )
+
+    if config["plot_model_graph"]:
+        tools.visualize.plot_model_graph(
+            model=trainer.model,
+            dataloader=trainer.get_train_dataloader(),
+            path=os.path.join(
+                config["log_dir"],
+                'model_graph'
+            )
+        )
+
+    if config['do_train']:
+        trainer.train(resume_from_checkpoint=config["resume_from"])
+        trainer.save_model(
+            os.path.join(
+                config["log_dir"],
+                'model_final'
+            )
+        )
+
+    if test_dataset is not None:
+        test_prediction = trainer.predict(test_dataset)
+        pd.DataFrame(
+            test_prediction.metrics,
+            index=[0]
+        ).to_csv(
+            os.path.join(
+                config["log_dir"],
+                'test_metrics.csv'
+            ),
+            index=False
+        )
+        np.save(
+            os.path.join(
+                config["log_dir"],
+                'test_predictions.npy'
+            ),
+            test_prediction.predictions
+        )
+        np.save(
+            os.path.join(
+                config["log_dir"],
+                'test_label_ids.npy'
+            ),
+            test_prediction.label_ids
+        )
+
+    return trainer
+
+
+def make_model(model_config: Dict=None):
+    """Make model from model_config 
+    (as generated by get_config()).
+    """
+    # model to embed input:
+    embedder = make_embedder(
+        training_style=model_config["training_style"],
+        architecture=model_config["architecture"],
+        in_dim=model_config["parcellation_dim"],
+        embed_dim=model_config["embedding_dim"],
+        num_hidden_layers=model_config["num_hidden_layers_embedding_model"],
+        dropout=model_config["dropout"],
+        t_r_precision=model_config["tr_precision"],
+        max_t_r=model_config["tr_max"],
+        masking_rate=model_config["masking_rate"],
+        n_positions=model_config["n_positions"]
+    )
+    # dl model architecture:
+    decoder = make_decoder(
+        architecture=model_config["architecture"],
+        num_hidden_layers=model_config["num_hidden_layers"],
+        embed_dim=model_config["embedding_dim"],
+        num_attention_heads=model_config["num_attention_heads"],
+        n_positions=model_config["n_positions"],
+        intermediate_dim_factor=model_config["intermediate_dim_factor"],
+        hidden_activation=model_config["hidden_activation"],
+        dropout=model_config["dropout"],
+        autoen_teacher_forcing_ratio=model_config["autoen_teacher_forcing_ratio"],
+    )
+
+    # add unembedding model to 
+    # project DL model output back to input dim
+    # during upstream learning:
+    if model_config["embedding_dim"] != model_config["parcellation_dim"]:
+        unembedder = make_unembedder(
+            embed_dim=model_config["embedding_dim"],
+            num_hidden_layers=model_config["num_hidden_layers_unembedding_model"],
+            out_dim=model_config["parcellation_dim"],
+            dropout=model_config["dropout"],
+        )
+
+    else:
+        unembedder = None
+
+    model = Model(
+        embedder=embedder,
+        decoder=decoder,
+        unembedder=unembedder
+    )
+
+    if model_config["training_style"] == 'decoding':
+        model.switch_decoding_mode(
+            is_decoding_mode=True,
+            num_decoding_classes=model_config["num_decoding_classes"]
+        )
+
+    if model_config["pretrained_model"] is not None:
+        model.from_pretrained(model_config["pretrained_model"])
+
+    # freeze various model elements, if specified:
+    if model_config["freeze_embedder"]:
+        for param in model.embedder.parameters():
+            param.requires_grad = False
+
+    if model_config["freeze_decoder"]:
+        for param in model.decoder.parameters():
+            param.requires_grad = False
+
+    if 'freeze_decoder_without_pooler_heads' in model_config \
+    and model_config["freeze_decoder_without_pooler_heads"]:
+        for name, param in model.decoder.named_parameters():
+            if 'pooler_layer' in name \
+            or 'decoding_head' in name \
+            or 'is_next_head' in name:
+                continue
+            else:
+                param.requires_grad = False
+
+    if model_config["freeze_unembedder"] and unembedder is not None:
+        for param in model.unembedder.parameters():
+            param.requires_grad = False
+
+    return model
+
+
+def get_args() -> argparse.ArgumentParser:
+    """Get command line arguments"""
+
+    parser = argparse.ArgumentParser(description='train-args')
+
+    # Data settings:
+    parser.add_argument(
+        '--data',
+        metavar='DIR',
+        default='data/',
+        type=str,
+        help='path to training tarfiles directory '
+             '(default: data/tarfiles/upstream)'
+    )
+    parser.add_argument(
+        '--frac-val-per-dataset',
+        metavar='FLOAT',
+        default=0.05,
+        type=float,
+        help='fraction of tarfiles per dataset that are '
+             'randomly selected as validation data'
+             '(default: 0.05)'
+    )
+    parser.add_argument(
+        '--n-val-subjects-per-dataset',
+        metavar='INT',
+        default=-1,
+        type=int,
+        help='number of subjects per dataset that are '
+             'randomly selected as validation data'
+             '/!\ overrides --frac-val-per-dataset'
+    )
+    parser.add_argument(
+        '--n-test-subjects-per-dataset',
+        metavar='INT',
+        default=-1,
+        type=int,
+        help='number of subjects per dataset that are '
+             'randomly selected as test data'
+             'Test set is only created if this is set!'
+    )
+    parser.add_argument(
+        '--n-train-subjects-per-dataset',
+        metavar='INT',
+        default=-1,
+        type=int,
+        help='number of subjects per dataset that are '
+             'randomly selected as training data'
+    )
+    parser.add_argument(
+        '--parcellation-dim',
+        metavar='INT',
+        default=1024,
+        type=int,
+        help='dimension of input data parcellation '
+             '(default: 1024)'
+    )
+    parser.add_argument(
+        '--pretrained-model',
+        metavar='DIR',
+        type=str,
+        default='none',
+        help='checkpoint that is used to initialize '
+             'model weights (default: none)'
+    )
+
+
+    # Embedder settings:    
+    parser.add_argument(
+        '--embedding-dim',
+        metavar='INT',
+        default=768,
+        type=int,
+        help='dimension of input embedding '
+             '(default: 768)'
+    )
+    parser.add_argument(
+        '--num-hidden-layers-embedding-model',
+        metavar='INT',
+        default=1,
+        type=int,
+        help='numer of layers of linear embedding model '
+             '(default: 1)'
+    )
+    parser.add_argument(
+        '--tr-max',
+        metavar='INT',
+        default=300,
+        type=int,
+        help='maximum number of TRs in TR-embeddings '
+             '(in seconds; default: 300)'
+    )
+    parser.add_argument(
+        '--tr-precision',
+        metavar='FLOAT',
+        default=0.2,
+        type=float,
+        help='precision of TR embeddings '
+             '(in seconds; default: 0.2)'
+    )
+    parser.add_argument(
+        '--freeze-embedder',
+        metavar='BOOL',
+        default='False',
+        choices=('True', 'False'),
+        type=str,
+        help='whether or not to freeze embedder weights '
+             '(default: False) '
+    )
+
+
+    # UnEmbedder settings:
+    parser.add_argument(
+        '--num-hidden-layers-unembedding-model',
+        metavar='INT',
+        default=1,
+        type=int,
+        help='numer of layers of linear unembedding '
+             'model (default: 1)'
+    )
+    parser.add_argument(
+        '--freeze-unembedder',
+        metavar='BOOL',
+        default='False',
+        choices=('True', 'False'),
+        type=str,
+        help='whether or not to freeze unembedder weights '
+             '(default: False) '
+    )
+
+
+    # Decoder settings:
+    parser.add_argument(
+        '--architecture',
+        metavar='STR',
+        default='GPT',
+        choices=('BERT', 'GPT', 'autoencoder', 'NetBERT', 'LogisticRegression'),
+        type=str,
+        help='DL mdoel architecture (default: GPT) '
+             '(options: BERT, GPT, autoencoder, NetBERT, LogisticRegression)'
+    )
+    parser.add_argument(
+        '--num-hidden-layers',
+        metavar='INT',
+        default=4,
+        type=int,
+        help='number of hidden layers of DL model (default: 4)'
+    )
+    parser.add_argument(
+        '--num-attention-heads',
+        metavar='INT',
+        default=-1,
+        type=int,
+        help='number of attention heads per transformer layer '
+             '(default: embedding-dim // 64)'
+    )
+    parser.add_argument(
+        '--intermediate-dim-factor',
+        metavar='INT',
+        default=4,
+        type=int,
+        help='scales feed-forward transformer layer dim relative to '
+             'embedding-dim (default: 4 times embeddind-dim)'
+    )
+    parser.add_argument(
+        '--hidden-activation',
+        metavar='STR',
+        default='gelu_new',
+        choices=('gelu', 'gelu_new', 'relu', 'silu'),
+        type=str,
+        help='type of hidden activation of transformer (default: gelu_new) '
+             'other option: ["gelu", "relu", "silu"]'
+    )
+    parser.add_argument(
+        '--n-positions',
+        metavar='INT',
+        default=512,
+        type=int,
+        help='maximum sequence length that transformer model might ever be used with '
+             '(default: 512)'
+    )
+    parser.add_argument(
+        '--freeze-decoder',
+        metavar='BOOL',
+        default='False',
+        choices=('True', 'False'),
+        type=str,
+        help='whether or not to freeze decoder weights '
+             '(default: False) '
+    )
+    parser.add_argument(
+        '--freeze-decoder-without-pooler-heads',
+        metavar='BOOL',
+        default='False',
+        choices=('True', 'False'),
+        type=str,
+        help='whether or not to freeze decoder weights '
+             'and exclude pooler layer and is-next-pred/decoding heads '
+             'from freezing'
+             '(default: False) '
+    )
+
+    
+
+    # Training settings:
+    parser.add_argument(
+        '--resume-from',
+        metavar='DIR',
+        type=str,
+        default='none',
+        help='continue training from specified checkpoint '
+             '(default: none)'
+    )
+    parser.add_argument(
+        '--training-style',
+        metavar='STR',
+        default='CSM',
+        choices=('CSM', 'BERT', 'NetBERT', 'autoencoder', 'decoding'),
+        type=str,
+        help='training framework (default: CSM) '
+             '(options: BERT, CSM, NetBERT, autoencoder, decoding)'
+    )
+    parser.add_argument(
+        '--decoding-target',
+        metavar='STR',
+        default='none',
+        type=str,
+        help='key for decoding target variable in tarfiles '
+             '(default: none)'
+    )
+    parser.add_argument(
+        '--num-decoding-classes',
+        metavar='INT',
+        default=0,
+        type=int,
+        help='number of decoding classes in downstream dataset'
+             '(default: 0)'
+    )
+    parser.add_argument(
+        '--training-steps',
+        metavar='INT',
+        default=400000,
+        type=int,
+        help='number of training steps to perform '
+             '(default: 400000)'
+    )
+    parser.add_argument(
+        '--validation-steps',
+        metavar='INT',
+        default=1000,
+        type=int,
+        help='number of validation steps at evaluation time '
+             '(default: 1000)'
+    )
+    parser.add_argument(
+        '--test-steps',
+        metavar='INT',
+        default=1000,
+        type=int,
+        help='number of test steps at test time'
+             '(default: 2000)'
+    )
+    parser.add_argument(
+        '--per-device-training-batch-size',
+        metavar='INT',
+        default=64,
+        type=int,
+        help='batch size during training per device '
+             '(default: 64)'
+    )
+    parser.add_argument(
+        '--per-device-validation-batch-size',
+        metavar='INT',
+        default=64,
+        type=int,
+        help='batch size during evaluation per device '
+             '(default: 64)'
+    )
+    parser.add_argument(
+        '--optim',
+        metavar='STR',
+        default='adamw_hf',
+        type=str,
+        help='optimizer to use '
+             '(default: adamw_hf)'
+             'For other options see Huggingface TrainerArgs'
+    )
+    parser.add_argument(
+        '--learning-rate',
+        metavar='FLOAT',
+        default=1e-4,
+        type=float,
+        help='Maximum learning rate during training '
+             '(default: 1e-4)'
+    )
+    parser.add_argument(
+        '--warmup-ratio',
+        metavar='FLOAT',
+        default=0.01,
+        type=float,
+        help='warm up steps for linear learning-rate scheduler '
+             'as fraction of training-steps '
+             '(default: 0.01)'
+    )
+    parser.add_argument(
+        '--weight-decay',
+        metavar='FLOAT',
+        default=0.1,
+        type=float,
+        help='weight decay (indicating l2-regularisation strength) '
+             '(default: 0.1)'
+    )
+    parser.add_argument(
+        '--adam-beta-1',
+        metavar='FLOAT',
+        default=0.9,
+        type=float,
+        help='adam beta 1 (default: 0.9)'
+    )
+    parser.add_argument(
+        '--adam-beta-2',
+        metavar='FLOAT',
+        default=0.999,
+        type=float,
+        help='adam beta 2 (default: 0.999)'
+    )
+    parser.add_argument(
+        '--adam-epsilon',
+        metavar='FLOAT',
+        default=1e-8,
+        type=float,
+        help='adam beta 2 (default: 1e-8)'
+    )
+    parser.add_argument(
+        '--max-grad-norm',
+        metavar='FLOAT',
+        default=1.0,
+        type=float,
+        help='maximum gradient clipping norm (default: 1.0)'
+    )
+    parser.add_argument(
+        '--lr-scheduler',
+        metavar='STR',
+        default='linear',
+        choices=['linear', 'constant_with_warmup', 'none'],
+        type=str,
+        help='learning rate scheduler type '
+             '(linear, constant_with_warmup or none) '
+             '(default: linear)'
+    )
+    parser.add_argument(
+        '--sample-random-seq',
+        metavar='BOOL',
+        choices=('True', 'False'),
+        default='True',
+        help='whether or not to sample sequneces randomly from BOLD files in data-dir '
+             '(default: True)'
+    )
+    parser.add_argument(
+        '--seq-min',
+        metavar='INT',
+        default=10,
+        type=int,
+        help='minimum length of randomly sampled BOLD sequences '
+             '(default: 10)'
+    )
+    parser.add_argument(
+        '--seq-max',
+        metavar='INT',
+        default=50,
+        type=int,
+        help='maximum length of randomly sampled BOLD sequence '
+             '(default: 50)'
+    )
+    parser.add_argument(
+        '--bert-seq-gap-min',
+        metavar='INT',
+        default=1,
+        type=int,
+        help='minimum TR gap between two input sequences '
+             '(default: 1)'
+    )
+    parser.add_argument(
+        '--bert-seq-gap-max',
+        metavar='INT',
+        default=5,
+        type=int,
+        help='maximum TR gap between two input sequences '
+             '(default: 5)'
+    )
+    parser.add_argument(
+        '--masking-rate',
+        metavar='FLOAT',
+        default=0.15,
+        type=float,
+        help='masking rate for BERT training '
+             '(default: 0.15)'
+    )
+    parser.add_argument(
+        '--dropout',
+        metavar='FLOAT',
+        default=0.1,
+        type=float,
+        help='dropout for hidden layers of embedder and decoder '
+             '(default: 0.1)'
+    )
+    parser.add_argument(
+        '--autoen-teacher-forcing-ratio',
+        metavar='FLAOT',
+        default=0.5,
+        type=float,
+        help='teacher forcing ratio of autoencoder decoder '
+             '(default: 0.5)'
+    )
+
+    
+    # Logging settings:
+    parser.add_argument(
+        '--log-dir',
+        metavar='DIR',
+        type=str,
+        default='results/models/',
+        help='path where training is logged '
+             '(default: results/models/)'
+    )
+    parser.add_argument(
+        '--log-every-n-steps',
+        metavar='INT',
+        default=10000,
+        type=int,
+        help='frequence of logging in training steps'
+             '(default: 10000)'
+    )
+    parser.add_argument(
+        '--run-name',
+        metavar='STR',
+        type=str,
+        default='none',
+        help='descriptor of the training run used for wandb and logging '
+             'a unique identified is automatically created, if set to "none"'
+    )
+    parser.add_argument(
+        '--wandb-mode',
+        metavar='STR',
+        choices=('online', 'offline', 'disabled'),
+        default='online',
+        help='track training w/ wandb online or offline or not at all'
+             '(default: online)'
+    )
+    parser.add_argument(
+        '--wandb-project-name',
+        metavar='STR',
+        type=str,
+        default='learning-from-brains',
+        help='name of wandb project where data is logged'
+             '(default: learning-from-brains)'
+    )
+    
+
+    # Other settings:
+    parser.add_argument(
+        '--seed',
+        metavar='INT',
+        default=1,
+        type=int,
+        help='random seed (default: 1)'
+    )
+    parser.add_argument(
+        '--set-seed',
+        metavar='BOOL',
+        choices=('True', 'False'),
+        default='True',
+        type=str,
+        help='whether or not to set random seed (default: True)'
+    )
+    parser.add_argument(
+        '--fp16',
+        metavar='BOOL',
+        choices=('True', 'False'),
+        default='True',
+        help='Whether or not to use 16-bit precision GPU training '
+             '(default: True)'
+    )
+    parser.add_argument(
+        '--deepspeed',
+        metavar='DIR',
+        default="none",
+        type=str,
+        help='location of deepspeed conf file '
+             '(default: none)'
+    )
+    parser.add_argument(
+        '--local_rank',
+        metavar='INT',
+        default=-1,
+        type=int,
+        help='Rank of the process during distributed training '
+             '(default: -1).'
+    )
+    parser.add_argument(
+        '--num-workers',
+        metavar='INT',
+        default=0,
+        type=int,
+        help='number of data loading workers '
+             '(default: 0 -> load in main process)'
+    )
+    parser.add_argument(
+        '--plot-model-graph',
+        metavar='BOOL',
+        default="False",
+        type=str,
+        choices=('True', 'False'),
+        help='whether or not to save image of model graph to log-dir '
+             '(default: False)'
+    )
+    parser.add_argument(
+        '--smoke-test',
+        metavar='BOOL',
+        default="False",
+        type=str,
+        choices=("True", "False"),
+        help='whetehr or not to run training in smoke test-mode '
+             '(default: False)'
+    )
+    parser.add_argument(
+        '--bold-dummy-mode',
+        metavar='BOOL',
+        default='False',
+        type=str,
+        choices=('True', 'False'),
+        help='whether or not to replace BOLD with dummy (for testing purposes) '
+             '(default: False)'
+    )
+    parser.add_argument(
+        '--do-train',
+        metavar='BOOL',
+        default='True',
+        type=str,
+        choices=('True', 'False'),
+        help='whether or not to run training '
+             '(default: True)'
+             'If False, trainer is still returned'
+    )
+
+    return parser
+
+
+def get_config(args: argparse.Namespace=None) -> Dict:
+    """
+    Make config from command line arguments.
+    """
+
+    if args is None:
+        args = get_args().parse_args()
+
+    args.smoke_test = args.smoke_test=="True"
+
+    if args.smoke_test:
+        args.per_device_training_batch_size =  2
+        args.per_device_validation_batch_size = 2
+        args.training_steps = 2
+        args.validation_steps = 2
+        args.test_steps = 2
+        args.log_every_n_steps = 1
+
+    if args.num_attention_heads==-1:
+        assert (
+            args.embedding_dim%64
+         ) == 0, f'embedding-dim needs be be multiple of 64 (currently: {args.embedding_dim})' 
+        args.num_attention_heads = args.embedding_dim//64
+
+    if args.run_name == 'none':
+        args.run_name = f'{args.architecture}'
+
+        if args.architecture != 'LogisticRegression':
+            if 'Pretrained' not in args.architecture:
+                args.run_name += f'_lrs-{args.num_hidden_layers}'
+
+                if args.architecture != 'autoencoder':
+                    args.run_name += f'_hds-{args.num_attention_heads}'
+
+            args.run_name += f'_embd-{args.embedding_dim}'
+            args.run_name += f'_train-{args.training_style}'
+            args.run_name += f'_lr-{str(args.learning_rate).replace(".", "")[1:]}'
+            args.run_name += f'_bs-{args.per_device_training_batch_size}'
+            args.run_name += f'_drp-{str(args.dropout).replace(".", "")}'
+
+            if args.training_style not in {'decoding', 'autoencoder', 'CSM'}:
+                args.run_name += f'_msk-{str(args.masking_rate).replace(".", "")}'
+
+        else:
+            args.run_name += f'_train-{args.training_style}'
+
+        args.run_name += f"_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+
+    if args.smoke_test:
+        args.run_name = f'smoke-test_{args.run_name}'
+
+    args.log_dir = os.path.join(args.log_dir, args.run_name)
+    args.pretrained_model = args.pretrained_model if args.pretrained_model != 'none' else None
+    args.resume_from = args.resume_from if args.resume_from != 'none' else None
+    args.decoding_target = None if args.decoding_target == 'none' else args.decoding_target
+    args.sample_random_seq = args.sample_random_seq=='True'
+    args.fp16 = args.fp16=='True'
+    args.deepspeed = args.deepspeed if args.deepspeed != "none" else None
+    args.plot_model_graph = args.plot_model_graph=='True'
+    args.wandb_mode = args.wandb_mode if args.wandb_mode in {'online', 'offline'} and args.local_rank in {-1, 0} else "disabled"  
+    args.bold_dummy_mode = args.bold_dummy_mode=='True'
+    args.freeze_embedder = args.freeze_embedder=='True'
+    args.freeze_decoder = args.freeze_decoder=='True'
+    args.freeze_decoder_without_pooler_heads = args.freeze_decoder_without_pooler_heads=='True'
+    args.freeze_unembedder = args.freeze_unembedder=='True'
+    args.do_train = args.do_train=='True'
+    args.set_seed = args.set_seed=='True'
+    args.n_val_subjects_per_dataset = None if args.n_val_subjects_per_dataset == -1 else args.n_val_subjects_per_dataset
+    args.n_test_subjects_per_dataset = None if args.n_test_subjects_per_dataset == -1 else args.n_test_subjects_per_dataset
+    args.n_train_subjects_per_dataset = None if args.n_train_subjects_per_dataset == -1 else args.n_train_subjects_per_dataset
+
+    return vars(args)
+
+
+if __name__ == '__main__':
+
+    trainer = train()
