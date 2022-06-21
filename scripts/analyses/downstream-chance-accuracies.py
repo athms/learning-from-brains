@@ -13,7 +13,7 @@ from nit.batcher import make_batcher
 from nit.tools import grab_tarfile_paths
 
 
-def downstream_chance(config: Dict=None) -> None:
+def downstream_chance_accuracy(config: Dict=None) -> None:
     
     if config is None:
         config = vars(get_args().parse_args())
@@ -70,28 +70,33 @@ def downstream_chance(config: Dict=None) -> None:
 
 def get_args() -> argparse.ArgumentParser:
 
-    parser = argparse.ArgumentParser(description='train-args')
+    parser = argparse.ArgumentParser(
+        description='compute downstream chance decodinga accuracies'
+    )
 
     parser.add_argument(
         '--downstream-data-dir',
         metavar='DIR',
-        default='data/tarfiles/downstream/',
+        default='data/tarfiles/downstream',
         type=str,
-        help='path to downstream data'
+        help='path to downstream datasets '
+             '(default: data/tarfiles/downstream)'
     )
     parser.add_argument(
         '--n-eval-samples',
         metavar='N',
         default=50000,
         type=int,
-        help='number of eval samples to evaluate'
+        help='number of eval samples to draw for evaluation '
+             '(default: 50000)'
     )
     parser.add_argument(
         '--seed',
         metavar='INT',
-        default=1,
+        default=1234,
         type=int,
-        help='random seed'
+        help='random seed '
+             '(default: 1234)'
     )
 
     return parser
@@ -99,4 +104,4 @@ def get_args() -> argparse.ArgumentParser:
 
 if __name__ == '__main__':
 
-    trainer = downstream_chance()
+    trainer = downstream_chance_accuracy()
