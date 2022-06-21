@@ -18,7 +18,7 @@ sns.set_theme(
 def fig_downstream_performance(config=None) -> None:
 
     if config is None:
-        config = vars(get_argparse().parse_args())
+        config = vars(get_args().parse_args())
 
     os.makedirs(config['figures_dir'], exist_ok=True)
 
@@ -136,7 +136,7 @@ def fig_downstream_performance(config=None) -> None:
     return None
 
 
-def get_argparse() -> argparse.ArgumentParser:
+def get_args() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description='figure downstream performance')
 
     parser.add_argument(

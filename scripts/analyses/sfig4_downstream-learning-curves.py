@@ -20,7 +20,7 @@ sns.set_theme(
 def sfig_downstream_learning(config=None) -> None:
 
     if config is None:
-        config = vars(get_argparse().parse_args())
+        config = vars(get_args().parse_args())
 
     os.makedirs(config['figures_dir'], exist_ok=True)
 
@@ -149,7 +149,7 @@ def sfig_downstream_learning(config=None) -> None:
     return None
 
 
-def get_argparse() -> argparse.ArgumentParser:
+def get_args() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description='supplementary figure downstream performance')
 
     parser.add_argument(

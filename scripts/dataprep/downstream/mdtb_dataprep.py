@@ -11,105 +11,6 @@ from src import Preprocessor
 import webdataset as wds
 
 
-def yield_task_ev(ev_path):
-    ev_df = pd.read_csv(ev_path, sep='\t')
-
-    if ev_df.shape[0] < 1:
-        return None
-
-    out = []
-    current_task = (
-        ev_df['taskName'][0][:-1]
-        if ev_df['taskName'][0].endswith('2')
-        else ev_df['taskName'][0]
-    )
-    task_start = ev_df['onset'][0]
-
-    for ev in ev_df.itertuples():
-        
-        if ev.taskName != current_task:
-            
-            if 'instruct' not in current_task:
-                task_end = float(ev.onset)
-                out.append(
-                    (
-                        current_task,
-                        task_start,
-                        task_end
-                    )
-                )
-            task_start = float(ev.onset)
-            current_task = (
-                ev.taskName[:-1]
-                if ev.taskName.endswith('2')
-                else ev.taskName
-            )
-
-    if len(out)>0:
-        yield from out
-    
-    else:
-        return None
-
-
-def map_tasks_to_labels(
-    ds_layout,
-    tasks,
-    sessions,
-    runs
-    ) -> Dict:
-
-    task_labels = []
-    
-    for subject in ds_layout.subjects:
-        
-        for task in tasks:
-            
-            for session in sessions:
-                
-                for run in runs:
-                    ev_path = ds_layout.get_subject_source_files(
-                        subject=subject,
-                        filters=[
-                            f"task-{task}",
-                            f"ses-{task}{session}",
-                            f"run-{run}",
-                            'events.tsv'
-                        ]
-                    )
-                    
-                    if len(ev_path) == 0:
-                        print('/!\ no ev file found for {}, {}, {}'.format(
-                            f"task-{task}",
-                            f"ses-{task}{session}",
-                            f"run-{run}"
-                            )
-                        )
-                        continue
-                    
-                    assert len(ev_path)==1, 'this should be exactly 1 ev file!'
-                    ev_path = ev_path[0]
-                    
-                    if os.path.isfile(ev_path):
-                        ev_df = pd.read_csv(ev_path, sep='\t')
-                        
-                        for ev in ev_df.itertuples():
-                            ev_task = (
-                                ev.taskName[:-1]
-                                if ev.taskName.endswith('2')
-                                else ev.taskName
-                            )
-                            
-                            if ev_task not in task_labels and 'instruct' not in ev_task:
-                                task_labels.append(ev_task)  
-    
-    task_label_mapping = {t: ti for ti, t in enumerate(sorted(task_labels))}
-    print(
-        '\t... found {} tasks:'.format(len(task_labels))
-    )
-
-    return task_label_mapping   
-
 
 def preprocess_mdtb(args: argparse.Namespace=None) -> None:
 
@@ -274,6 +175,106 @@ def preprocess_mdtb(args: argparse.Namespace=None) -> None:
                                         sink.write(sample_dict)
 
     print('... done.')
+
+
+def yield_task_ev(ev_path):
+    ev_df = pd.read_csv(ev_path, sep='\t')
+
+    if ev_df.shape[0] < 1:
+        return None
+
+    out = []
+    current_task = (
+        ev_df['taskName'][0][:-1]
+        if ev_df['taskName'][0].endswith('2')
+        else ev_df['taskName'][0]
+    )
+    task_start = ev_df['onset'][0]
+
+    for ev in ev_df.itertuples():
+        
+        if ev.taskName != current_task:
+            
+            if 'instruct' not in current_task:
+                task_end = float(ev.onset)
+                out.append(
+                    (
+                        current_task,
+                        task_start,
+                        task_end
+                    )
+                )
+            task_start = float(ev.onset)
+            current_task = (
+                ev.taskName[:-1]
+                if ev.taskName.endswith('2')
+                else ev.taskName
+            )
+
+    if len(out)>0:
+        yield from out
+    
+    else:
+        return None
+
+
+def map_tasks_to_labels(
+    ds_layout,
+    tasks,
+    sessions,
+    runs
+    ) -> Dict:
+
+    task_labels = []
+    
+    for subject in ds_layout.subjects:
+        
+        for task in tasks:
+            
+            for session in sessions:
+                
+                for run in runs:
+                    ev_path = ds_layout.get_subject_source_files(
+                        subject=subject,
+                        filters=[
+                            f"task-{task}",
+                            f"ses-{task}{session}",
+                            f"run-{run}",
+                            'events.tsv'
+                        ]
+                    )
+                    
+                    if len(ev_path) == 0:
+                        print('/!\ no ev file found for {}, {}, {}'.format(
+                            f"task-{task}",
+                            f"ses-{task}{session}",
+                            f"run-{run}"
+                            )
+                        )
+                        continue
+                    
+                    assert len(ev_path)==1, 'this should be exactly 1 ev file!'
+                    ev_path = ev_path[0]
+                    
+                    if os.path.isfile(ev_path):
+                        ev_df = pd.read_csv(ev_path, sep='\t')
+                        
+                        for ev in ev_df.itertuples():
+                            ev_task = (
+                                ev.taskName[:-1]
+                                if ev.taskName.endswith('2')
+                                else ev.taskName
+                            )
+                            
+                            if ev_task not in task_labels and 'instruct' not in ev_task:
+                                task_labels.append(ev_task)  
+    
+    task_label_mapping = {t: ti for ti, t in enumerate(sorted(task_labels))}
+    print(
+        '\t... found {} tasks:'.format(len(task_labels))
+    )
+
+    return task_label_mapping   
 
 
 def get_args() -> argparse.Namespace:

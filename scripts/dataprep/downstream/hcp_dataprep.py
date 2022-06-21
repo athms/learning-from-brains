@@ -11,51 +11,6 @@ from src.preprocessor import Preprocessor
 import webdataset as wds
 
 
-def yield_task_ev(
-    ev_path: str
-    ) -> Generator[Tuple[str, float, float], None, None]:
-    ev_df = pd.read_csv(ev_path)
-    
-    if ev_df.shape[0] < 1:
-        return None
-    
-    for ev in ev_df.itertuples():
-        yield (
-            ev.event_type,
-            ev.onset,
-            ev.end
-        )                            
-
-def yiel_rest_ev(
-    t_rs: np.array,
-    seq_min: int = 10,
-    seq_max: int = 25
-    ) -> Generator[Tuple[str, float, float], None, None]:
-    out = []
-    ev_on = 0
-
-    while ev_on <= max(t_rs):
-        seq_len = np.random.randint(
-            low=seq_min,
-            high=seq_max,
-            size=1
-        )[0]
-        ev_off = ev_on + seq_len
-        out.append(
-            (
-                'rest',
-                ev_on,
-                ev_off
-            )
-        )
-        ev_on = ev_off
-
-    if out > 0:
-        yield from out
-    
-    else:
-        return None
-
 
 def preprocess_hcp(args: argparse.Namespace=None) -> None:
 
@@ -265,6 +220,51 @@ def preprocess_hcp(args: argparse.Namespace=None) -> None:
                             sink=sink,
                             sample_dict=sample_dict
                         )
+
+def yield_task_ev(
+    ev_path: str
+    ) -> Generator[Tuple[str, float, float], None, None]:
+    ev_df = pd.read_csv(ev_path)
+    
+    if ev_df.shape[0] < 1:
+        return None
+    
+    for ev in ev_df.itertuples():
+        yield (
+            ev.event_type,
+            ev.onset,
+            ev.end
+        )                            
+
+def yiel_rest_ev(
+    t_rs: np.array,
+    seq_min: int = 10,
+    seq_max: int = 25
+    ) -> Generator[Tuple[str, float, float], None, None]:
+    out = []
+    ev_on = 0
+
+    while ev_on <= max(t_rs):
+        seq_len = np.random.randint(
+            low=seq_min,
+            high=seq_max,
+            size=1
+        )[0]
+        ev_off = ev_on + seq_len
+        out.append(
+            (
+                'rest',
+                ev_on,
+                ev_off
+            )
+        )
+        ev_on = ev_off
+
+    if out > 0:
+        yield from out
+    
+    else:
+        return None
 
 
 def get_args() -> argparse.Namespace:

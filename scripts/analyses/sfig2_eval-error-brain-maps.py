@@ -24,7 +24,7 @@ from nit.tools import plot_brain_map
 def eval_error_brain_maps(config: Dict=None) -> None:
     
     if config is None:
-        config = vars(get_argsparser().parse_args())
+        config = vars(get_args().parse_args())
 
     os.makedirs(
         config['error_brainmaps_dir'],
@@ -200,7 +200,7 @@ def eval_error_brain_maps(config: Dict=None) -> None:
     return None
 
 
-def get_argsparser() -> argparse.ArgumentParser:
+def get_args() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(description='train-args')
 

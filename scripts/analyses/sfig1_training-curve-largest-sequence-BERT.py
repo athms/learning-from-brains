@@ -14,10 +14,10 @@ sns.set_theme(
 )
 
 
-def fig_training_curve_seq_BERT_large(config=None) -> None:
+def fig_training_curve_seqBERT_large(config=None) -> None:
 
     if config is None:
-        config = vars(get_argparse().parse_args())
+        config = vars(get_args().parse_args())
 
     os.makedirs(config['figures_dir'], exist_ok=True)
 
@@ -68,7 +68,7 @@ def fig_training_curve_seq_BERT_large(config=None) -> None:
     return None
 
 
-def get_argparse() -> argparse.ArgumentParser:
+def get_args() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description='figure hyperopt')
 
     parser.add_argument(
@@ -90,4 +90,4 @@ def get_argparse() -> argparse.ArgumentParser:
 
 
 if __name__ == '__main__':
-    fig_training_curve_seq_BERT_large()
+    fig_training_curve_seqBERT_large()

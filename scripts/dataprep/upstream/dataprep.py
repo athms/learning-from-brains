@@ -7,15 +7,6 @@ import nibabel as nb
 import nit
 
 
-def quality_check(img):
-    zooms = np.array([img.header.get_zooms()[:3]])
-    A = img.affine[:3, :3]
-    
-    cosines = A / zooms
-    diff = A - cosines * zooms.T
-
-    return not np.allclose(diff, 0), np.max(np.abs(diff))
-
 
 def dataprep(args: argparse.Namespace=None) -> None:
 
@@ -112,6 +103,16 @@ def dataprep(args: argparse.Namespace=None) -> None:
         else:
             print('skipping {}, as {} exists already'.format(deriv_bold, sink_path))
 
+
+def quality_check(img):
+    zooms = np.array([img.header.get_zooms()[:3]])
+    A = img.affine[:3, :3]
+    
+    cosines = A / zooms
+    diff = A - cosines * zooms.T
+
+    return not np.allclose(diff, 0), np.max(np.abs(diff))
+    
 
 def get_args() -> argparse.Namespace:
     # parse input arguments

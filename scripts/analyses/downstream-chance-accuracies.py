@@ -16,7 +16,7 @@ from nit.tools import grab_tarfile_paths
 def downstream_chance(config: Dict=None) -> None:
     
     if config is None:
-        config = vars(get_argsparser().parse_args())
+        config = vars(get_args().parse_args())
 
     random.seed(config["seed"])
 
@@ -68,7 +68,7 @@ def downstream_chance(config: Dict=None) -> None:
     return None
 
 
-def get_argsparser() -> argparse.ArgumentParser:
+def get_args() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(description='train-args')
 

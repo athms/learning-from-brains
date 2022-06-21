@@ -9,180 +9,6 @@ import argparse
 from shutil import copyfile
 
 
-def identify_event_type_from_filepath(
-    filepath: str,
-    task: str
-    ) -> str:
-    
-    if (
-            task == 'GAMBLING' and
-            '_event' in filepath
-            or task == 'SOCIAL' and
-            '_resp' in filepath
-        ):
-        return None
-
-    event_type = filepath.split('.')[0].split('EV_')[-1]
-
-    if task == 'SOCIAL' and 'resp' in event_type:
-        return event_type.split('_')[-2]
-
-    elif task == 'WM':
-        
-        event_type = event_type.split('_')[-1]
-        
-        if event_type in {
-                'body',
-                'faces',
-                'places',
-                'tools'
-            }:
-            return event_type
-        
-        else:
-            return None
-
-    else:
-        return event_type.split('_')[0]
-
-def summarize_evs(
-    ev_filepaths: List[str],
-    task: str,
-    subject: Union[int, str],
-    run: Union[int, str]
-    ) -> pd.DataFrame:
-
-    if task not in {
-        'EMOTION',
-        'SOCIAL',
-        'GAMBLING',
-        'LANGUAGE',
-        'RELATIONAL',
-        'MOTOR',
-        'WM'
-        }:
-        raise NameError('Invalid task type.')
-
-    df_list = []
-
-    for filepath in ev_filepaths:
-
-        event_type = identify_event_type_from_filepath(
-            filepath=filepath,
-            task=task
-        )
-        if event_type is None:
-            continue
-
-        if 'cue' not in event_type:
-
-            try:
-                ev_mat = pd.read_csv(filepath, sep='\t', header=None).values
-
-            except pd.errors.EmptyDataError:
-                print(
-                    f'/!\ {filepath} because is empty.'
-                )
-                continue
-
-            except FileNotFoundError:
-                print(
-                    f'/!\ {filepath} does not exist'
-                )
-                continue
-
-            df_tmp = pd.DataFrame(
-                {
-                    'subject': subject,
-                    'task': task,
-                    'run': run,
-                    'event_type': event_type,
-                    'onset': ev_mat[:, 0],
-                    'duration': ev_mat[:, 1],
-                    'end': ev_mat[:, 0] + ev_mat[:, 1]
-                }
-            )
-            df_list.append(df_tmp)
-    
-    return pd.concat(df_list) if df_list else None
-
-
-def evs_for_task(
-    task: str
-    ) -> List[str]:
-
-    if task == 'EMOTION':
-        file_types = [
-            'fear.txt',
-            'neut.txt'
-        ]
-
-    elif task == 'GAMBLING':
-        file_types = [
-            'win.txt',
-            'loss.txt',
-            'win_event.txt',
-            'loss_event.txt',
-            'neut_event.txt'
-        ]
-
-    elif task == 'LANGUAGE':
-        file_types = [
-            'story.txt',
-            'math.txt'
-        ]
-
-    elif task == 'MOTOR':
-        file_types = [
-            'cue.txt',
-            'lf.txt',
-            'rf.txt',
-            'lh.txt',
-            'rh.txt',
-            't.txt'
-        ]
-
-    elif task == 'RELATIONAL':
-        file_types = [
-            'relation.txt',
-            'match.txt'
-        ]
-
-    elif task == 'SOCIAL':
-        file_types = [
-            'mental.txt',
-            'rnd.txt',
-            'mental_resp.txt',
-            'other_resp.txt'
-        ]
-
-    elif task == 'WM':
-        file_types = [
-            '0bk_body.txt',
-            '0bk_faces.txt',
-            '0bk_places.txt',
-            '0bk_tools.txt',
-            '2bk_body.txt',
-            '2bk_faces.txt',
-            '2bk_places.txt',
-            '2bk_tools.txt',
-            '0bk_cor.txt',
-            '0bk_err.txt',
-            '0bk_nlr.txt',
-            '2bk_cor.txt',
-            '2bk_err.txt',
-            '2bk_nlr.txt',
-            'all_bk_cor.txt',
-            'all_bk_err.txt'
-        ]
-
-    else:
-        file_types = None
-        raise NameError('Invalid task type.')
-    
-    return file_types
-
-
 def hcp_to_bids(args: argparse.Namespace=None) -> None:
 
     if args is None:
@@ -399,6 +225,181 @@ def hcp_to_bids(args: argparse.Namespace=None) -> None:
 
                     else:
                         print(f'/!\ {target_path} exists already')
+
+
+def identify_event_type_from_filepath(
+    filepath: str,
+    task: str
+    ) -> str:
+    
+    if (
+            task == 'GAMBLING' and
+            '_event' in filepath
+            or task == 'SOCIAL' and
+            '_resp' in filepath
+        ):
+        return None
+
+    event_type = filepath.split('.')[0].split('EV_')[-1]
+
+    if task == 'SOCIAL' and 'resp' in event_type:
+        return event_type.split('_')[-2]
+
+    elif task == 'WM':
+        
+        event_type = event_type.split('_')[-1]
+        
+        if event_type in {
+                'body',
+                'faces',
+                'places',
+                'tools'
+            }:
+            return event_type
+        
+        else:
+            return None
+
+    else:
+        return event_type.split('_')[0]
+
+
+def summarize_evs(
+    ev_filepaths: List[str],
+    task: str,
+    subject: Union[int, str],
+    run: Union[int, str]
+    ) -> pd.DataFrame:
+
+    if task not in {
+        'EMOTION',
+        'SOCIAL',
+        'GAMBLING',
+        'LANGUAGE',
+        'RELATIONAL',
+        'MOTOR',
+        'WM'
+        }:
+        raise NameError('Invalid task type.')
+
+    df_list = []
+
+    for filepath in ev_filepaths:
+
+        event_type = identify_event_type_from_filepath(
+            filepath=filepath,
+            task=task
+        )
+        if event_type is None:
+            continue
+
+        if 'cue' not in event_type:
+
+            try:
+                ev_mat = pd.read_csv(filepath, sep='\t', header=None).values
+
+            except pd.errors.EmptyDataError:
+                print(
+                    f'/!\ {filepath} because is empty.'
+                )
+                continue
+
+            except FileNotFoundError:
+                print(
+                    f'/!\ {filepath} does not exist'
+                )
+                continue
+
+            df_tmp = pd.DataFrame(
+                {
+                    'subject': subject,
+                    'task': task,
+                    'run': run,
+                    'event_type': event_type,
+                    'onset': ev_mat[:, 0],
+                    'duration': ev_mat[:, 1],
+                    'end': ev_mat[:, 0] + ev_mat[:, 1]
+                }
+            )
+            df_list.append(df_tmp)
+    
+    return pd.concat(df_list) if df_list else None
+
+
+def evs_for_task(
+    task: str
+    ) -> List[str]:
+
+    if task == 'EMOTION':
+        file_types = [
+            'fear.txt',
+            'neut.txt'
+        ]
+
+    elif task == 'GAMBLING':
+        file_types = [
+            'win.txt',
+            'loss.txt',
+            'win_event.txt',
+            'loss_event.txt',
+            'neut_event.txt'
+        ]
+
+    elif task == 'LANGUAGE':
+        file_types = [
+            'story.txt',
+            'math.txt'
+        ]
+
+    elif task == 'MOTOR':
+        file_types = [
+            'cue.txt',
+            'lf.txt',
+            'rf.txt',
+            'lh.txt',
+            'rh.txt',
+            't.txt'
+        ]
+
+    elif task == 'RELATIONAL':
+        file_types = [
+            'relation.txt',
+            'match.txt'
+        ]
+
+    elif task == 'SOCIAL':
+        file_types = [
+            'mental.txt',
+            'rnd.txt',
+            'mental_resp.txt',
+            'other_resp.txt'
+        ]
+
+    elif task == 'WM':
+        file_types = [
+            '0bk_body.txt',
+            '0bk_faces.txt',
+            '0bk_places.txt',
+            '0bk_tools.txt',
+            '2bk_body.txt',
+            '2bk_faces.txt',
+            '2bk_places.txt',
+            '2bk_tools.txt',
+            '0bk_cor.txt',
+            '0bk_err.txt',
+            '0bk_nlr.txt',
+            '2bk_cor.txt',
+            '2bk_err.txt',
+            '2bk_nlr.txt',
+            'all_bk_cor.txt',
+            'all_bk_err.txt'
+        ]
+
+    else:
+        file_types = None
+        raise NameError('Invalid task type.')
+    
+    return file_types
 
 
 def get_args() -> argparse.Namespace:
