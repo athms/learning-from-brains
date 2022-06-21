@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "Self-supervised learning of brain dynamics from broad neuroimaging data"
+name = "learning-from-brains"
 version = "0.1.0"
-description = ""
+description = "Self-supervised learning of brain dynamics from broad neuroimaging data."
 authors = ["Armin W. Thomas <athms@stanford.edu>"]
 
 [tool.poetry.dependencies]
