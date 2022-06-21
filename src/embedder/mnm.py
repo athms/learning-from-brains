@@ -10,7 +10,7 @@ class MNMEmbedder(CSMEmbedder):
     
     def __init__(
         self,
-        masking_rate: float = 0.1,
+        masking_rate: float = 0.2,
         n_positions: int=512,
         **kwargs
         ) -> None:

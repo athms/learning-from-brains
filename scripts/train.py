@@ -890,7 +890,7 @@ def get_args() -> argparse.ArgumentParser:
     parser.add_argument(
         '--bert-masking-rate',
         metavar='FLOAT',
-        default=0.15,
+        default=0.2,
         type=float,
         help='masking rate for BERT-style training '
              '(default: 0.15)'

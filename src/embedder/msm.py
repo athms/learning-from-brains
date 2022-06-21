@@ -10,7 +10,7 @@ class MSMEmbedder(CSMEmbedder):
     
     def __init__(
         self,
-        masking_rate: float = 0.15,
+        masking_rate: float = 0.2,
         **kwargs
         ) -> None:
         super().__init__(**kwargs)

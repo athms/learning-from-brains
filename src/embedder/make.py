@@ -7,7 +7,7 @@ def make_embedder(
     in_dim: int=1024,
     embed_dim: int=768,
     num_hidden_layers: int=1,
-    masking_rate: float=0.15,
+    masking_rate: float=0.2,
     dropout: float=0.1,
     t_r_precision: int = 0.2, # in seconds
     max_t_r: int = 300, # in seconds (= 10min)
