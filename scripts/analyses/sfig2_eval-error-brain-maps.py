@@ -202,41 +202,47 @@ def eval_error_brain_maps(config: Dict=None) -> None:
 
 def get_args() -> argparse.ArgumentParser:
 
-    parser = argparse.ArgumentParser(description='train-args')
+    parser = argparse.ArgumentParser(
+        description='compute upstream reconstruction error brain map for given model; '
+                    'as shown in appendix figure 2 of the manuscript.'
+    )
 
     parser.add_argument(
         '--model-dir',
         metavar='DIR',
         type=str,
-        help='path to pretrained model directory'
+        help='path to directory where model is stored '
     )
     parser.add_argument(
         '--error-brainmaps-dir',
         metavar='DIR',
         default='results/brain_maps/l1_error',
         type=str,
-        help='path where predictions are saved'
+        help='directory to which error brain map will be stored '
+             '(default: results/brain_maps/l1_error)'
     )
     parser.add_argument(
         '--n-eval-samples',
         metavar='N',
         default=50000,
         type=int,
-        help='number of eval samples to evaluate'
+        help='number of samples to draw for evaluation '
+             '(default: 50000)'
     )
     parser.add_argument(
         '--data-dir',
         metavar='DIR',
         type=str,
-        default='data/tarfiles/upstream',
-        help='path to data directory'
+        default='data/upstream',
+        help='path to upstream data directory '
+             '(default: data/upstream)'
     )
     parser.add_argument(
         '--seed',
         metavar='INT',
-        default=1,
+        default=1234,
         type=int,
-        help='random seed'
+        help='random seed (default: 1234)'
     )
 
     return parser
@@ -244,4 +250,4 @@ def get_args() -> argparse.ArgumentParser:
 
 if __name__ == '__main__':
 
-    trainer = eval_error_brain_maps()
+    eval_error_brain_maps()

@@ -29,14 +29,12 @@ def fig_upstream_performance_pretrained_lms(config=None) -> None:
     )
 
     model_names = ['PretrainedGPT2', 'PretrainedBERT']
-    for i, (model_name, ax, loss_label, name) in enumerate(
-        zip(
-                model_names,
-                fig_axs.values(),
-                ['L1', 'L1 + XE'],
-                ['GPT2', 'BERT']
-            )
-        ):
+    for model_name, ax, loss_label, name in zip(
+        model_names,
+        fig_axs.values(),
+        ['L1', 'L1 + XE'],
+        ['GPT2', 'BERT']
+    ):
         model_dirs = [
             p for p in 
             os.listdir(config['upstream_models_dir'])
@@ -46,7 +44,7 @@ def fig_upstream_performance_pretrained_lms(config=None) -> None:
             f'{model_name} should have exactly two paths in {config["upstream_models_dir"]}'
         warmup_dir = [m for m in model_dirs if 'warmup' in m][0]
         train_dir = [m for m in model_dirs if 'warmup' not in m][0]
-        
+
         start_step = 0
         for mi, model_dir in enumerate([warmup_dir, train_dir]):
             model_dir = os.path.join(
@@ -68,7 +66,7 @@ def fig_upstream_performance_pretrained_lms(config=None) -> None:
             ax.plot(
                 eval_history['step'].values + start_step,
                 eval_history['loss'].values,
-                label=f'Eval.' if mi == 1 else f'Warmup Eval.',
+                label='Eval.' if mi == 1 else 'Warmup Eval.',
                 color=['grey', 'k'][mi],
                 linestyle='solid',
                 lw=2
@@ -76,7 +74,7 @@ def fig_upstream_performance_pretrained_lms(config=None) -> None:
             ax.plot(
                 train_history['step'].values[1:-1] + start_step, # exclude 0th and final step
                 train_history['loss'].values[1:-1],
-                label=f'Train' if mi == 1 else f'Warmup Train',
+                label='Train' if mi == 1 else 'Warmup Train',
                 color=['grey', 'k'][mi],
                 linestyle='dashed',
                 lw=1
@@ -106,21 +104,25 @@ def fig_upstream_performance_pretrained_lms(config=None) -> None:
 
 
 def get_args() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description='figure hyperopt')
+    parser = argparse.ArgumentParser(
+        description=' appendix figure 3 of the manuscript; upstream training performance of pre-trained language models'
+    )
 
     parser.add_argument(
         '--upstream-models-dir',
         metavar='DIR',
-        default='results/models/hyperopt/',
+        default='results/models/upstream',
         type=str,
-        help=''
+        help='path to directory where models are stored '
+             '(default: results/models/upstream)'
     )
     parser.add_argument(
         '--figures-dir',
         metavar='DIR',
-        default='results/figures/',
+        default='results/figures',
         type=str,
-        help=''
+        help='directory to which figure will be saved '
+             '(default: results/figures)'
     )
 
     return parser

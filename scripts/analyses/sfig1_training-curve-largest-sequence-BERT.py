@@ -14,7 +14,7 @@ sns.set_theme(
 )
 
 
-def fig_training_curve_seqBERT_large(config=None) -> None:
+def sfig_training_curve_seqBERT_large(config=None) -> None:
 
     if config is None:
         config = vars(get_args().parse_args())
@@ -69,25 +69,29 @@ def fig_training_curve_seqBERT_large(config=None) -> None:
 
 
 def get_args() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description='figure hyperopt')
+    parser = argparse.ArgumentParser(
+        description='appendix figure 1; training performance of largest Seq-BERT model variant'
+    )
 
     parser.add_argument(
         '--hyperopt-dir',
         metavar='DIR',
-        default='results/models/hyperopt/',
+        default='results/models/hyperopt',
         type=str,
-        help=''
+        help='path to directory where hyper-optimization results are stored '
+             '(default: results/models/hyperopt)'
     )
     parser.add_argument(
         '--figures-dir',
         metavar='DIR',
-        default='results/figures/',
+        default='results/figures',
         type=str,
-        help=''
+        help='directory to which figure will be saved '
+             '(default: results/figures)'
     )
 
     return parser
 
 
 if __name__ == '__main__':
-    fig_training_curve_seqBERT_large()
+    sfig_training_curve_seqBERT_large()

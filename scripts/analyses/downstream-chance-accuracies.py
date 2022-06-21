@@ -77,10 +77,10 @@ def get_args() -> argparse.ArgumentParser:
     parser.add_argument(
         '--downstream-data-dir',
         metavar='DIR',
-        default='data/tarfiles/downstream',
+        default='data/downstream',
         type=str,
         help='path to downstream datasets '
-             '(default: data/tarfiles/downstream)'
+             '(default: data/downstream)'
     )
     parser.add_argument(
         '--n-eval-samples',

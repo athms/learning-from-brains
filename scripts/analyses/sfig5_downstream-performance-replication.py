@@ -137,21 +137,27 @@ def fig_downstream_performance(config=None) -> None:
 
 
 def get_args() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description='figure downstream performance')
+    parser = argparse.ArgumentParser(
+        description='appendix figure 6; replication of downstream adaptation analysis for MDTB data'
+    )
 
     parser.add_argument(
         '--downstream-models-dir',
         metavar='DIR',
-        default='results/models/downstream/',
+        default='results/models/downstream',
         type=str,
-        help=''
+        help='path to directory where models are stored '
+             '(default: results/models/downstream); '
+             'needs to include "replication/" sub-directory, '
+             'containing the model fits of the replication'
     )
     parser.add_argument(
         '--figures-dir',
         metavar='DIR',
-        default='results/figures/',
+        default='results/figures',
         type=str,
-        help=''
+        help='directory to which figure will be saved '
+             '(default: results/figures)'
     )
 
     return parser

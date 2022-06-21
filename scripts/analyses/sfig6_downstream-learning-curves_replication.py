@@ -18,7 +18,7 @@ sns.set_theme(
 )
 
 
-def sfig_downstrea_learning(config=None) -> None:
+def sfig_downstream_learning_curves(config=None) -> None:
 
     if config is None:
         config = vars(get_args().parse_args())
@@ -35,7 +35,7 @@ def sfig_downstrea_learning(config=None) -> None:
         figsize=(9, 10),
         sharey=True
     )
-    
+
     for ai, (architecture, name) in enumerate(
         zip(
                 architectures,
@@ -173,25 +173,29 @@ def sfig_downstrea_learning(config=None) -> None:
 
 
 def get_args() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description='supplementary figure downstream performance')
+    parser = argparse.ArgumentParser(
+        description='appendix figure 7 of the manuscript; downstream learning curves for replication analysis'
+    )
 
     parser.add_argument(
         '--downstream-models-dir',
         metavar='DIR',
-        default='results/models/downstream/',
+        default='results/models/downstream/replication',
         type=str,
-        help=''
+        help='path to directory where models are stored '
+             '(default: results/models/downstream/replication)'
     )
     parser.add_argument(
         '--figures-dir',
         metavar='DIR',
         default='results/figures/',
         type=str,
-        help=''
+        help='directory to which figure will be saved '
+             '(default: results/figures)'
     )
 
     return parser
 
 
 if __name__ == '__main__':
-    sfig_downstrea_learning()
+    sfig_downstream_learning_curves()

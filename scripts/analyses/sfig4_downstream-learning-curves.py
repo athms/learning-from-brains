@@ -17,7 +17,7 @@ sns.set_theme(
 )
 
 
-def sfig_downstream_learning(config=None) -> None:
+def sfig_downstream_learning_curves(config=None) -> None:
 
     if config is None:
         config = vars(get_args().parse_args())
@@ -150,25 +150,29 @@ def sfig_downstream_learning(config=None) -> None:
 
 
 def get_args() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description='supplementary figure downstream performance')
+    parser = argparse.ArgumentParser(
+        description='appendix figure 4-5 of the manuscript; downstream learning curves'
+    )
 
     parser.add_argument(
         '--downstream-models-dir',
         metavar='DIR',
         default='results/models/downstream/',
         type=str,
-        help=''
+        help='path to directory where models are stored '
+             '(default: results/models/downstream)'
     )
     parser.add_argument(
         '--figures-dir',
         metavar='DIR',
-        default='results/figures/',
+        default='results/figures',
         type=str,
-        help=''
+        help='directory to which figure will be saved '
+             '(default: results/figures)'
     )
 
     return parser
 
 
 if __name__ == '__main__':
-    sfig_downstream_learning()
+    sfig_downstream_learning_curves()
