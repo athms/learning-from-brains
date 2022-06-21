@@ -104,21 +104,25 @@ def fig_upstream_performance(config=None) -> None:
 
 
 def get_args() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description='figure hyperopt')
+    parser = argparse.ArgumentParser(
+        description='figure 4 of the manuscript; upstream performance of final models'
+    )
 
     parser.add_argument(
         '--upstream-models-dir',
         metavar='DIR',
-        default='results/models/hyperopt/',
+        default='results/models/upstream',
         type=str,
-        help=''
+        help='path to directory where models are stored '
+             '(default: results/models/upstream)'
     )
     parser.add_argument(
         '--figures-dir',
         metavar='DIR',
-        default='results/figures/',
+        default='results/figures',
         type=str,
-        help=''
+        help='directory to which figure will be saved '
+             '(default: results/figures)'
     )
 
     return parser

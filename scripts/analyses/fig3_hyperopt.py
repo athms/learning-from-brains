@@ -29,8 +29,8 @@ def fig_hyperopt(config=None) -> None:
         """,
         figsize=(10, 5),
     )
-
     training_styles = ['autoencoder', 'CSM', 'BERT', 'NetBERT']
+
     for hi, (training_style, axs, loss_label, name) in enumerate(
         zip(
                 training_styles,
@@ -76,9 +76,10 @@ def fig_hyperopt(config=None) -> None:
         )
         embedding_dims = np.sort(embedding_dims)
         final_eval_loss = np.zeros((len(n_layers), len(embedding_dims)))
-
         linestyles = ['solid', 'dashed', 'dotted']
+
         for li, l in enumerate(n_layers):
+
             for ei, e in enumerate(embedding_dims):
                 model_path = [
                     p for p in model_paths
@@ -178,21 +179,25 @@ def fig_hyperopt(config=None) -> None:
 
 
 def get_args() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description='figure hyperopt')
+    parser = argparse.ArgumentParser(
+        description='figure 3 of the manuscript; hyper-optimization model performances'
+    )
 
     parser.add_argument(
         '--hyperopt-dir',
         metavar='DIR',
-        default='results/models/hyperopt/',
+        default='results/models/hyperopt',
         type=str,
-        help=''
+        help='path to directory where hyper-optimization results are stored '
+             '(default: results/models/hyperopt)'
     )
     parser.add_argument(
         '--figures-dir',
         metavar='DIR',
         default='results/figures/',
         type=str,
-        help=''
+        help='directory to which figure will be saved '
+             '(default: results/figures)'
     )
 
     return parser

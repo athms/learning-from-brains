@@ -147,20 +147,25 @@ def fig_upstream_data(config: Dict=None) -> None:
 
 def get_args() -> argparse.ArgumentParser:
 
-    parser = argparse.ArgumentParser(description='data preprocessing')
+    parser = argparse.ArgumentParser(
+        description='figure 2 of the manuscript; overview of upstream datasets'
+    )
     
     parser.add_argument(
         '--data-dir',
         metavar='DIR',
         type=str,
-        help='path to root BIDS directory'
+        default='data/upstream',
+        help='path to upstream data directory '
+             '(default: data/upstream)'
     )
     parser.add_argument(
         '--figures-dir',
         metavar='DIR',
         type=str,
         default='results/figures',
-        help='path where figure will be saved'
+        help='directory to which figure will be saved '
+             '(default: results/figures)'
     )
 
     return parser
