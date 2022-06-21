@@ -445,24 +445,6 @@ def get_config(args: argparse.Namespace=None) -> Dict:
 
         elif 'subjects_per_dataset' in arg:
             config[arg] = None if config[arg] == -1 else config[arg]
-            
-    # args.n_val_subjects_per_dataset = None if args.n_val_subjects_per_dataset == -1 else args.n_val_subjects_per_dataset
-    # args.n_test_subjects_per_dataset = None if args.n_test_subjects_per_dataset == -1 else args.n_test_subjects_per_dataset
-    # args.n_train_subjects_per_dataset = None if args.n_train_subjects_per_dataset == -1 else args.n_train_subjects_per_dataset
-    # args.pretrained_model = args.pretrained_model if args.pretrained_model != 'none' else None
-    # args.resume_from = args.resume_from if args.resume_from != 'none' else None
-    # args.decoding_target = None if args.decoding_target == 'none' else args.decoding_target
-    # args.deepspeed = args.deepspeed if args.deepspeed != "none" else None
-    # args.sample_random_seq = args.sample_random_seq=='True'
-    # args.fp16 = args.fp16=='True'
-    # args.plot_model_graph = args.plot_model_graph=='True'
-    # args.bold_dummy_mode = args.bold_dummy_mode=='True'
-    # args.freeze_embedder = args.freeze_embedder=='True'
-    # args.freeze_decoder = args.freeze_decoder=='True'
-    # args.freeze_decoder_without_pooler_heads = args.freeze_decoder_without_pooler_heads=='True'
-    # args.freeze_unembedder = args.freeze_unembedder=='True'
-    # args.do_train = args.do_train=='True'
-    # args.set_seed = args.set_seed=='True'
 
     return config
 
