@@ -5,7 +5,29 @@ from einops import rearrange
 
 
 class UnEmbedder(torch.nn.Module):
+    """
+    Unmebedding model; used to project predicted 
+    output sequences of src.decoder back to input 
+    space during upstream learning.
+    
+    Args
+    ----
+    embed_dim: int
+        Dimension of the embedding space.
+    out_dim: int
+        Dimension of the output space.
+    num_hidden_layers: int
+        Number of hidden layers of projection model.
+        If >1, all hidden layers except for the last
+        are activated with Gelu activation.
+    dropout: float
+        Dropout ratio for the projection model.
 
+    Core methods
+    ----
+    forward(inputs, **kwargs)
+        Projection of input to output space.
+    """
     def __init__(
         self,
         embed_dim: int = 768,
@@ -85,7 +107,25 @@ def make_unembedder(
     dropout: int = 0.1
     ) -> torch.nn.Module:
     """
-    Creates a UnEmbedder.
+    Creates a UnEmbedder object.
+
+    Args
+    ----
+    embed_dim: int
+        Dimension of the embedding space.
+    out_dim: int
+        Dimension of the output space.
+    num_hidden_layers: int
+        Number of hidden layers of projection model.
+        If >1, all hidden layers except for the last
+        are activated with Gelu activation.
+    dropout: float
+        Dropout ratio for the projection model.
+
+    Core methods
+    ----
+    forward(inputs, **kwargs)
+        Projection of input to output space.
     """
     return UnEmbedder(
         embed_dim=embed_dim,

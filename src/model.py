@@ -6,39 +6,39 @@ import warnings
 
 
 class Model(torch.nn.Module):
+    """
+    Create Model object from embedder, decoder,
+    and unembedder (if not None).
+
+    Args
+    ----
+    embedder: src.embedder.make_embedder
+        Instance of embedder class.
+    decoder: src.decoder.make_decoder
+        Instance of decoder class.
+    unembedder: src.unembedder.make_unembedder
+        Instance of unembedder class.
+        Only added to model if not None.
+
+    Methods
+    ----
+    forward(batch: Dict[str, torch.tensor])
+        Forward pass of model.
+    prep_batch(batch: Dict[str, torch.tensor])
+        Prepare batch for forward pass.
+    compute_loss(batch: Dict[str, torch.tensor])
+        Compute training loss.
+    from_pretrained(pretrained_path: str)
+        Load pretrained model from pretrained_path.
+        Needs to point to pytorch_model.bin file 
+    """
     def __init__(
         self,
         embedder: torch.nn.Module,
         decoder: torch.nn.Module,
         unembedder: torch.nn.Module = None
         ) -> torch.nn.Module:
-        """
-        Create Model object from embedder, decoder,
-        and unembedder (if not None).
-
-        Args
-        ----
-        embedder: src.embedder.make_embedder
-            Instance of embedder class.
-        decoder: src.decoder.make_decoder
-            Instance of decoder class.
-        unembedder: src.unembedder.make_unembedder
-            Instance of unembedder class.
-            Only added to model if not None.
-
-        Methods
-        ----
-        forward(batch: Dict[str, torch.tensor])
-            Forward pass of model.
-        prep_batch(batch: Dict[str, torch.tensor])
-            Prepare batch for forward pass.
-        compute_loss(batch: Dict[str, torch.tensor])
-            Compute training loss.
-        from_pretrained(pretrained_path: str)
-            Load pretrained model from pretrained_path.
-            Needs to point to pytorch_model.bin file
-            
-        """
+        
         super().__init__()
         self.name = f'Embedder-{embedder.name}_Decoder-{decoder.name}'
         self.embedder = embedder
