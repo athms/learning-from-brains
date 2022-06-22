@@ -26,11 +26,11 @@ def make_decoder(
     architecture: str
         The model architecture to use.
         One of: 'GPT', 'BERT', 'NetBERT', autoencoder',
-        'PretrainedGPT', 'PretrainedBERT', 'LogisticRegression'.
+        'PretrainedGPT', 'PretrainedBERT', 'LinearBaseline'.
     num_hidden_layers: int
         The number of hidden layers of the model.
         Does not apply to 'PretrainedGPT', 'PretrainedBERT', 
-        'LogisticRegression'. 
+        'LinearBaseline'. 
         For 'autoencoder', num_hidden_layers represents 
         the number of hidden layers of the encoder and decoder
         model.
@@ -107,9 +107,9 @@ def make_decoder(
         from src.decoder.bert import PretrainedBERT
         return PretrainedBERT(**kwargs)
 
-    elif architecture == 'LogisticRegression':
-        from src.decoder.logistic_regression import LogisticRegression
-        return LogisticRegression(**kwargs)
+    elif architecture == 'LinearBaseline':
+        from src.decoder.linear_baseline import LinearBaseline
+        return LinearBaseline(**kwargs)
     
     else:
         raise ValueError(f'{architecture}-architecture unkown.')

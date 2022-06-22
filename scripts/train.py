@@ -27,7 +27,7 @@ src/decoder: Model architecture used for decoding / sequence modeling.
         - autoencoder
         - PretrainedGPT2
         - PretrainedBERT
-        - LogisticRegression
+        - LinearBaseline
 src/unembedder: Project output of decoder back to input space.
 src/trainer: Trainer for model; invokes instance of 
     Hugging Face's Trainer class.
@@ -128,7 +128,7 @@ def train(config: Dict=None) -> Trainer:
         'autoencoder',
         'PretrainedGPT2',
         'PretrainedBERT',
-        'LogisticRegression'
+        'LinearBaseline'
     }, f'{config["architecture"]} is not supported.'
 
     path_tarfile_paths_split = os.path.join(
@@ -406,7 +406,7 @@ def get_config(args: argparse.Namespace=None) -> Dict:
     if args.run_name == 'none':
         args.run_name = f'{args.architecture}'
 
-        if args.architecture != 'LogisticRegression':
+        if args.architecture != 'LinearBaseline':
             if 'Pretrained' not in args.architecture:
                 args.run_name += f'_lrs-{args.num_hidden_layers}'
 
@@ -597,11 +597,11 @@ def get_args() -> argparse.ArgumentParser:
             'GPT',
             'autoencoder',
             'NetBERT',
-            'LogisticRegression'
+            'LinearBaseline'
         ),
         type=str,
         help='Model architecture used for sequence modeling / decoding. '
-             'One of {BERT, NetBERT, GPT, autoencoder, LogisticRegression} '
+             'One of {BERT, NetBERT, GPT, autoencoder, LinearBaseline} '
              '(default: GPT) '
     )
     parser.add_argument(
@@ -611,7 +611,7 @@ def get_args() -> argparse.ArgumentParser:
         type=int,
         help='number of hidden model layers in --architecture '
              '(default: 4). '
-             '! Does not apply to LogisticRegression; '
+             '! Does not apply to LinearBaseline; '
              '! Same number of hidden layers is used for decoder / encoder '
              'parts of autoencoder (ie., default creates encoder and decoder '
              'with 4 hidden layers each)'

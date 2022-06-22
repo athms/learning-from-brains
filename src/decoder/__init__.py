@@ -4,7 +4,7 @@ from src.decoder.make import make_decoder
 from src.decoder.gpt import GPTModel, PretrainedGPT2
 from src.decoder.bert import BERTModel, PretrainedBERT
 from src.decoder.autoencoder import AutoEncoder
-from src.decoder.logistic_regression import LogisticRegression
+from src.decoder.linear_baseline import LinearBaseline
 
 __all__ = [
     'make_decoder',
@@ -13,5 +13,5 @@ __all__ = [
     'GPTModel',
     'PretrainedGPT2',
     'AutoEncoder',
-    'LogisticRegression'
+    'LinearBaseline'
 ]

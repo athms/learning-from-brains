@@ -28,7 +28,7 @@ def make_embedder(
     architecture: str
         The model architecture to use.
         One of: 'GPT', 'BERT', 'NetBERT', autoencoder',
-        'PretrainedGPT', 'PretrainedBERT', 'LogisticRegression'.
+        'PretrainedGPT', 'PretrainedBERT', 'LinearBaseline'.
     training_style: str
         The used training style (ie., framework).
         One of: 'BERT', 'CSM', 'NetBERT', 'autoencoder',
@@ -137,7 +137,7 @@ def make_embedder(
             from src.embedder.netbert import NetBERTEmbedder
             embedder = NetBERTEmbedder(**kwargs)
 
-        elif architecture == 'LogisticRegression':
+        elif architecture == 'LinearBaseline':
             from src.embedder.dummy import DummyEmbedder
             embedder = DummyEmbedder(**kwargs)
 

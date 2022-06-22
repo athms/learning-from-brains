@@ -5,7 +5,7 @@ import warnings
 import torch
 
 
-class LogisticRegression(torch.nn.Module):
+class LinearBaseline(torch.nn.Module):
     def __init__(
         self,
         n_networks: int=1024,
@@ -14,7 +14,7 @@ class LogisticRegression(torch.nn.Module):
         **kwargs
         ) -> None:
         super().__init__()
-        self.name = 'LogisticRegression'
+        self.name = 'LinearBaseline'
         self.is_decoding_mode = True
         self.n_networks = n_networks
         self.n_timesteps = n_timesteps
