@@ -298,7 +298,30 @@ class BERTBatcher(BaseBatcher):
         n_shuffle_samples: int = 1000,
         batch_size: int = 2,
         num_workers: int = 0
-        ) -> Generator[Dict[str, torch.tensor], None, None]:
+        ) -> torch.utils.data.Dataset:
+        """Create Pytorch dataset that can be used for training.
+
+        Args:
+        -----
+            tarfiles: list
+                List of paths to data files (ie., fMRI runs) used for training.
+            repeat: bool
+                If True, repeat the dataset indefinitely.
+            length: int
+                Maximum number of samples to yield from the dataset.
+            n_shuffle_shards: int
+                Buffer for shuffling of tarfiles during training.
+            n_shuffle_samples: int
+                Buffer for shuffling of samples during training.
+            batch_size: int
+                Number of samples per batch; must be a multiple of 2!
+            num_workers: int
+                Number of workers to use for data loading.
+
+        Returns:
+        -----
+            torch.utils.data.Dataset: Pytorch dataset.
+        """
         assert len(tarfiles) >= 2, 'batcher requires more than one tarfile.'
         tarfiles_a = tarfiles[:int(len(tarfiles)/2)]
         tarfiles_b = tarfiles[int(len(tarfiles)/2):]

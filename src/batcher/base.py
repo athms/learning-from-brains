@@ -114,12 +114,33 @@ class BaseBatcher:
     def dataset(
         self,
         tarfiles: list,
-        length: int = 400000,
         repeat: bool=True,
+        length: int = 400000,
         n_shuffle_shards: int = 1000,
         n_shuffle_samples: int = 1000,
         num_workers: int = 0
-        ) -> Generator[Dict[str, torch.tensor], None, None]:
+        ) -> torch.utils.data.Dataset:
+        """Create Pytorch dataset that can be used for training.
+
+        Args:
+        -----
+            tarfiles: list
+                List of paths to data files (ie., fMRI runs) used for training.
+            repeat: bool
+                If True, repeat the dataset indefinitely.
+            length: int
+                Maximum number of samples to yield from the dataset.
+            n_shuffle_shards: int
+                Buffer for shuffling of tarfiles during training.
+            n_shuffle_samples: int
+                Buffer for shuffling of samples during training.
+            num_workers: int
+                Number of workers to use for data loading.
+
+        Returns:
+        -----
+            torch.utils.data.Dataset: Pytorch dataset.
+        """
         dataloader = self._make_dataloader(
             files=tarfiles,
             repeat=repeat,
