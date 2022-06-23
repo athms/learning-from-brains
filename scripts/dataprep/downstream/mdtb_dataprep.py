@@ -2,21 +2,23 @@
 
 import sys, os
 import argparse
-from typing import Dict
+from typing import Dict, Generator, Tuple
 import json
 import numpy as np
 import pandas as pd
-sys.path.insert(0, '././')
-from src import Preprocessor
 import webdataset as wds
+script_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, f'{script_path}/../../../')
+from src.preprocessor import Preprocessor
 
 
+def preprocess_mdtb(config: Dict=None) -> None:
+    """Script's main function; additional preprocessing
+    of MDTB fmriprep derivatives'"""
 
-def preprocess_mdtb(args: argparse.Namespace=None) -> None:
+    if config is None:
+        config = vars(get_args().parse_args())
 
-    if args is None:
-        args = get_args()
-    
     dataset = 'ds002105'
     tasks = ['a', 'b']
     runs = np.arange(1,9)
@@ -24,7 +26,7 @@ def preprocess_mdtb(args: argparse.Namespace=None) -> None:
     t_r = 1
     t_r_offset = 3 * t_r
     ds_root = os.path.join(
-        args.data_dir,
+        config["bids_dir"],
         dataset,
         'data'
     )
@@ -33,20 +35,19 @@ def preprocess_mdtb(args: argparse.Namespace=None) -> None:
         dataset,
         verbose=True
     )
-
     os.makedirs(
         os.path.join(
-            args.tarfiles_dir,
+            config["data_dir"],
             dataset
         ),
         exist_ok=True
     )
     task_label_mapping_path = os.path.join(
-        args.tarfiles_dir,
+        config["data_dir"],
         dataset,
         'task_label_mapping.json'
     )
-    
+
     if not os.path.isfile(task_label_mapping_path):
         print(
             '\tmapping tasks to labels ...'
@@ -57,39 +58,37 @@ def preprocess_mdtb(args: argparse.Namespace=None) -> None:
             sessions=sessions,
             runs=runs
         )
-        
+
         with open(task_label_mapping_path, 'w') as f:
             json.dump(task_label_mapping, f)
-    
+
     else:
         print(
             f'\tfound existing task-label mapping at {task_label_mapping_path}'
         )
         with open(task_label_mapping_path, 'r') as f:
             task_label_mapping = json.load(f)
-     
+
     for t, ti in task_label_mapping.items():
         print(
-            '\t\t{} -> {}'.format(
-                t, ti
-            )
+            f'\t\t{t} -> {ti}'
         )  
 
     print(
         '\nStarting preprocessing of bold data ...'
     )
-    
+
     for task in tasks:
         
         for session in sessions:
             
             for run in runs:
                 bold_path = ds_layout.get_subject_deriv_files(
-                    subject=args.sub,
+                    subject=config["subject"],
                     filters=[
-                        "task-{}".format(task),
-                        "ses-{}{}".format(task,session),
-                        "run-{}".format(run),
+                        f"task-{task}",
+                        f"ses-{task}{session}",
+                        f"run-{run}",
                         "space-MNI152NLin2009cAsym",
                         "desc-preproc_bold",
                         'nii.gz'
@@ -100,7 +99,7 @@ def preprocess_mdtb(args: argparse.Namespace=None) -> None:
                     assert len(bold_path)==1, 'too many bold files found!'
                     bold_path = bold_path[0]
                     print(
-                        '\tpreprocessing: {}'.format(bold_path)
+                        f'\tpreprocessing: {bold_path}'
                     )
                     preproc_bold = ds_layout.preprocess_bold(
                         bold_path=bold_path,
@@ -109,36 +108,32 @@ def preprocess_mdtb(args: argparse.Namespace=None) -> None:
                     trs = np.arange(preproc_bold.shape[0]) * t_r
                     key = ds_layout.make_key(bold_path)
                     sink_path = os.path.join(
-                        args.tarfiles_dir,
+                        config["data_dir"],
                         dataset,
-                        '{}.tar'.format(key)
+                        f'{key}.tar'
                     )
                     
                     if os.path.isfile(sink_path):
                         print(
-                            '\t/!\ skipping sub-{}, task-{}, ses-{}, run-{}, '
-                            'as {} exists already'.format(
-                                args.sub,
-                                task,
-                                session,
-                                run,
-                                sink_path
-                            )
+                            f'\t/!\ skipping sub-{config["subject"]}, '
+                            f'task-{task}, '
+                            f'ses-{session}, '
+                            f'run-{run}, '
+                            f'as {sink_path} exists already'
                         )
                         continue
                     
                     ev_path = ds_layout.get_subject_source_files(
-                        subject=args.sub,
+                        subject=config["subject"],
                         filters=[
-                            "task-{}".format(task),
-                            "ses-{}{}".format(task,session),
-                            "run-{}".format(run),
+                            f"task-{task}",
+                            f"ses-{task}{session}",
+                            f"run-{run}",
                             'events.tsv'
                         ]
                     )
 
                     if len(ev_path)==1:
-
                         ev_iterator = yield_task_ev(ev_path=ev_path[0])
                         
                         if ev_iterator is not None:
@@ -177,7 +172,10 @@ def preprocess_mdtb(args: argparse.Namespace=None) -> None:
     print('... done.')
 
 
-def yield_task_ev(ev_path):
+def yield_task_ev(
+    ev_path: str
+    ) -> Generator[Tuple[str, float, float], None, None]:
+    """Yield type, onset, and end of events in task EV file."""
     ev_df = pd.read_csv(ev_path, sep='\t')
 
     if ev_df.shape[0] < 1:
@@ -192,9 +190,9 @@ def yield_task_ev(ev_path):
     task_start = ev_df['onset'][0]
 
     for ev in ev_df.itertuples():
-        
+
         if ev.taskName != current_task:
-            
+
             if 'instruct' not in current_task:
                 task_end = float(ev.onset)
                 out.append(
@@ -211,7 +209,7 @@ def yield_task_ev(ev_path):
                 else ev.taskName
             )
 
-    if len(out)>0:
+    if out:
         yield from out
     
     else:
@@ -224,15 +222,15 @@ def map_tasks_to_labels(
     sessions,
     runs
     ) -> Dict:
-
+    """Map task names to numeric labels."""
     task_labels = []
-    
+
     for subject in ds_layout.subjects:
-        
+
         for task in tasks:
-            
+
             for session in sessions:
-                
+
                 for run in runs:
                     ev_path = ds_layout.get_subject_source_files(
                         subject=subject,
@@ -243,64 +241,62 @@ def map_tasks_to_labels(
                             'events.tsv'
                         ]
                     )
-                    
+
                     if len(ev_path) == 0:
-                        print('/!\ no ev file found for {}, {}, {}'.format(
-                            f"task-{task}",
-                            f"ses-{task}{session}",
-                            f"run-{run}"
-                            )
+                        print(
+                            "/!\ no ev file found for "
+                            f"task-{task}, "
+                            f"ses-{task}{session}, "
+                            f"run-{run} "
                         )
                         continue
-                    
+
                     assert len(ev_path)==1, 'this should be exactly 1 ev file!'
                     ev_path = ev_path[0]
-                    
+
                     if os.path.isfile(ev_path):
                         ev_df = pd.read_csv(ev_path, sep='\t')
-                        
+
                         for ev in ev_df.itertuples():
                             ev_task = (
                                 ev.taskName[:-1]
                                 if ev.taskName.endswith('2')
                                 else ev.taskName
                             )
-                            
+
                             if ev_task not in task_labels and 'instruct' not in ev_task:
                                 task_labels.append(ev_task)  
-    
-    task_label_mapping = {t: ti for ti, t in enumerate(sorted(task_labels))}
-    print(
-        '\t... found {} tasks:'.format(len(task_labels))
-    )
 
-    return task_label_mapping   
+    return {t: ti for ti, t in enumerate(sorted(task_labels))}   
 
 
 def get_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='MDTB data preprocessing')
+    parser = argparse.ArgumentParser(
+        description='additional preprocessing of MDTB fmriprep derivatives'
+    )
     
+    parser.add_argument(
+        '--bids-dir',
+        metavar='DIR',
+        type=str,
+        help='directory where HCP source data and derivatives '
+             'are stored in BIDS format'
+    )
     parser.add_argument(
         '--data-dir',
         metavar='DIR',
+        default='../data/downstream/',
         type=str,
-        help='path to directory where MDTB data are stored'
+        help='path where .tar files for fMRI runs wil be stored '
+             '(default: ../data/downstream)'
     )
     parser.add_argument(
-        '--tarfiles-dir',
-        metavar='DIR',
-        default='../data/tarfiles/downstream/',
-        type=str,
-        help='path where .tar shards are stored '
-             '(default: ../data/tarfiles/downstream/)'
-    )
-    parser.add_argument(
-        '--sub',
+        '--subject',
         metavar='SUBJECT',
         type=str,
         help='id of subject for which data is preprocessed'
     )
-    return parser.parse_args()
+    return parser
 
 
 if __name__ == '__main__':

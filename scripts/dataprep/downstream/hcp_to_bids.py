@@ -421,5 +421,4 @@ def get_args() -> argparse.Namespace:
 
 
 if __name__ == '__main__':
-
     hcp_to_bids()

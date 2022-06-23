@@ -1,74 +1,109 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
-import os
+import os, sys
 import argparse
+from typing import Dict
 import numpy as np
 import nibabel as nb
-import nit
+script_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, f'{script_path}/../../../')
+from src.preprocessor import Preprocessor
 
 
+def dataprep(config: Dict=None) -> None:
+    """Script's main function; additional preprocessing 
+    of fmriprep derivatives with Preprocessor from src/"""
 
-def dataprep(args: argparse.Namespace=None) -> None:
+    if config is None:
+        config = vars(get_args().parse_args())
 
-    # get parser args
-    if args is None:
-        args = get_args()
+    if not os.path.isdir(
+        os.path.join(
+            config['bids_dir'],
+            config['ds']
+        )
+    ):
+        raise OSError(
+            f'{config["ds"]} not found in {config["bids_dir"]}'
+        )
 
-    # check whether dataset exists
-    if not os.path.isdir(os.path.join(args.data, args.ds)):
-        raise OSError('{} not found in {}'.format(args.ds, args.data))
-
-    ds_root = os.path.join(args.data, args.ds, 'data')
-    ds_out = os.path.join(args.out, args.ds)
-
-    nit_preprocessor = nit.Preprocessor(
+    ds_root = os.path.join(
+        config['bids_dir'],
+        config['ds'],
+        'data'
+    )
+    ds_out = os.path.join(
+        config['data_dir'],
+        config['ds']
+    )
+    preprocessor = Preprocessor(
         root=ds_root,
-        dataset=args.ds,
+        dataset=config['ds'],
         verbose=False,
-        t_r=float(args.tr) if args.tr!=-1 else None 
+        t_r=float(config['tr']) if config['tr']!=-1 else None 
     )    
-    assert args.sub in nit_preprocessor.subjects, 'sub-{} not found in {}.'.format(args.sub, args.ds)
-    print('Preprocessing data of sub-{}'.format(args.sub))
+    assert config['subject'] in preprocessor.subjects,\
+        f'sub-{config["subject"]} not found in {config["ds"]}.'
+    print(
+        f'Preprocessing data of sub-{config["subject"]}'
+    )
 
-    if 'fmriprep-20.2.0' in nit_preprocessor.derivatives_path:
-        check_fmriprep_bug = args.check_fmriprep_bug == 'True'
+    if 'fmriprep-20.2.0' in preprocessor.derivatives_path:
+        # should data be tested for fmriprep 20.2.0 bug?
+        # see: https://github.com/nipreps/fmriprep/issues/2307
+        check_fmriprep_bug = config['check_fmriprep_bug'] == 'True'
+
     else:
         check_fmriprep_bug = False
+
     if not check_fmriprep_bug:
-        print('Testing for fmriprep-20.2.0 bug is turned off')
+        print(
+            '! Data not tested for fmriprep-20.2.0 bug'
+        )
     
     def deriv_bold_iterator():
+        """iterate BOLD derivatives that are to be preprocessed."""
+        
         if check_fmriprep_bug:
-            # make sure that files are not affected by fmriprep-20.2.0 bug!
-            source_bolds = nit_preprocessor.get_subject_source_files(
-                subject=args.sub,
+            # make sure that files are not affected by fmriprep-20.2.0 bug
+            # see: https://github.com/nipreps/fmriprep/issues/2307
+            source_bolds = preprocessor.get_subject_source_files(
+                subject=config['subject'],
                 filters=[
                     'bold',
                     '.nii'
                 ]
             )
+
             for source_bold in source_bolds:
                 affected, _ = quality_check(nb.load(source_bold))
+
                 if affected:
                     print(
                         f'skipping {source_bold}, because source data affected by fmriprep-20.2.0 bug.'
                     )
+
                 else:
-                    filters = nit_preprocessor._make_bold_filters(source_bold)
+                    filters = preprocessor._make_bold_filters(source_bold)
                     filters += [
                         'space-MNI152NLin2009cAsym',
                         'preproc',
                         'bold',
                         'nii.gz'
                     ]
-                    deriv_bold = nit_preprocessor.get_subject_deriv_files(
-                        subject=args.sub,
+                    deriv_bold = preprocessor.get_subject_deriv_files(
+                        subject=config['subject'],
                         filters=filters
                     )
+
                     if len(deriv_bold)==1:
                         yield deriv_bold[0]
+
                     else:
-                        print('\tskipping {}, as no unique matching deriv bold file found.'.format(source_bold))
+                        print(
+                            f'\tskipping {source_bold}, as no corresponding derivative found.'
+                        )
+        
         else:
             filters = [
                 'space-MNI152NLin2009cAsym',
@@ -76,81 +111,88 @@ def dataprep(args: argparse.Namespace=None) -> None:
                 'bold',
                 'nii.gz'
             ]
-            yield from nit_preprocessor.get_subject_deriv_files(
-                subject=args.sub,
+
+            yield from preprocessor.get_subject_deriv_files(
+                subject=config['subject'],
                 filters=filters
             )
     
     for deriv_bold in deriv_bold_iterator():
-        key = nit_preprocessor.make_key(deriv_bold)
+        key = preprocessor.make_key(deriv_bold)
         sink_path = '{}/{}.tar'.format(
             ds_out, key
         )
+
         if not os.path.isfile(sink_path) or os.path.getsize(sink_path) < 50000:
             print('\tpreprocessing {}'.format(deriv_bold))
-            bold_t_r = nit_preprocessor.get_bold_tr(deriv_bold) if args.tr==-1 else args.tr
-            preproc_bold = nit_preprocessor.preprocess_bold(
+            bold_t_r = preprocessor.get_bold_tr(deriv_bold) if config['tr']==-1 else config['tr']
+            preproc_bold = preprocessor.preprocess_bold(
                 bold_path=deriv_bold,
                 t_r=bold_t_r
             )
-            nit_preprocessor.write_bold_to_tar(
+            preprocessor.write_bold_to_tar(
                 bold=preproc_bold,
                 t_r=bold_t_r,
                 key=key,
                 path=ds_out
             )                    
             print('\t..done.')
+
         else:
             print('skipping {}, as {} exists already'.format(deriv_bold, sink_path))
 
 
 def quality_check(img):
+    """test of source BOLD data for fmriprep-20.2.0 bug.
+    see: https://github.com/nipreps/fmriprep/issues/2307"""
     zooms = np.array([img.header.get_zooms()[:3]])
     A = img.affine[:3, :3]
-    
     cosines = A / zooms
     diff = A - cosines * zooms.T
 
     return not np.allclose(diff, 0), np.max(np.abs(diff))
     
 
-def get_args() -> argparse.Namespace:
-    # parse input arguments
-    parser = argparse.ArgumentParser(description='data preprocessing')
+def get_args() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description='additional preprocessing of fmriprep derivatives'
+    )
     
     parser.add_argument(
-        '--data',
+        '--bids-dir',
         metavar='DIR',
         type=str,
-        help='path to root BIDS directory '
+        help='path to data directory, '
+             'where source data and derivatives are stored '
+             'for dataset in BIDS format'
     )
     parser.add_argument(
         '--ds',
         metavar='STR',
         type=str,
-        help='ID of dataset in data/'
+        help='ID of dataset that will be preprocessed'
     )
     parser.add_argument(
-        '--sub',
+        '--subject',
         metavar='STR',
         type=str,
         help='ID of subject whose data will be preprocessed'
     )
     parser.add_argument(
-        '--out',
+        '--data-dir',
         metavar='DIR',
-        default='../data/tarfiles/',
+        default='../data/tarfiles',
         type=str,
-        help='path where .tar shards are stored '
-             '(default: ../data/tarfiles/)'
+        help='path where .tar files for fMRI runs are stored '
+             '(default: ../data/tarfiles)'
     )
     parser.add_argument(
         '--tr',
         metavar='TR',
         default=-1,
         type=float,
-        help='TR of func data '
-             'will be infered from data if not set.'
+        help='repetition time / TR of BOLD data (in seconds); '
+             'will be infered from data files, if not set (or set to -1).'
     )
     parser.add_argument(
         '--check-fmriprep-bug',
@@ -158,13 +200,12 @@ def get_args() -> argparse.Namespace:
         default='True',
         choices=('True', 'False'),
         type=str,
-        help='whether or not to test for fmriprep-bug '
+        help='whether or not to test for fmriprep 20.2.0 bug '
              '(default: True)'
     )
 
-    return parser.parse_args()
+    return parser
 
         
 if __name__ == '__main__':
-
     dataprep()
