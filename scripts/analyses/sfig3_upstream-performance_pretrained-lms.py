@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import os
 import argparse
 import pandas as pd
@@ -14,13 +15,13 @@ sns.set_theme(
 )
 
 
-def fig_upstream_performance_pretrained_lms(config=None) -> None:
+def sfig_upstream_performance_pretrained_lms(config=None) -> None:
+    """Script's main function; creates Appendix Figure 3 of the manuscript."""
 
     if config is None:
         config = vars(get_args().parse_args())
 
     os.makedirs(config['figures_dir'], exist_ok=True)
-
     fig, fig_axs = plt.subplot_mosaic(
         """
         AB
@@ -28,24 +29,23 @@ def fig_upstream_performance_pretrained_lms(config=None) -> None:
         figsize=(6, 3),
     )
 
-    model_names = ['PretrainedGPT2', 'PretrainedBERT']
-    for model_name, ax, loss_label, name in zip(
-        model_names,
-        fig_axs.values(),
+    for name, print_name, loss_label, ax in zip(
+        ['PretrainedGPT2', 'PretrainedBERT'],
+        ['GPT2', 'BERT'],
         ['L1', 'L1 + XE'],
-        ['GPT2', 'BERT']
+        fig_axs.values()        
     ):
         model_dirs = [
             p for p in 
             os.listdir(config['upstream_models_dir'])
-            if model_name in p
+            if name in p
         ]
         assert len(model_dirs) == 2, \
-            f'{model_name} should have exactly two paths in {config["upstream_models_dir"]}'
+            f'{name} should have exactly two paths in {config["upstream_models_dir"]}'
         warmup_dir = [m for m in model_dirs if 'warmup' in m][0]
         train_dir = [m for m in model_dirs if 'warmup' not in m][0]
+        learning_curve_start_step = 0
 
-        start_step = 0
         for mi, model_dir in enumerate([warmup_dir, train_dir]):
             model_dir = os.path.join(
                 config['upstream_models_dir'],
@@ -64,7 +64,7 @@ def fig_upstream_performance_pretrained_lms(config=None) -> None:
                 )
             )
             ax.plot(
-                eval_history['step'].values + start_step,
+                eval_history['step'].values + learning_curve_start_step,
                 eval_history['loss'].values,
                 label='Eval.' if mi == 1 else 'Warmup Eval.',
                 color=['grey', 'k'][mi],
@@ -72,16 +72,16 @@ def fig_upstream_performance_pretrained_lms(config=None) -> None:
                 lw=2
             )
             ax.plot(
-                train_history['step'].values[1:-1] + start_step, # exclude 0th and final step
+                train_history['step'].values[1:-1] + learning_curve_start_step, # exclude 0th and final step
                 train_history['loss'].values[1:-1],
                 label='Train' if mi == 1 else 'Warmup Train',
                 color=['grey', 'k'][mi],
                 linestyle='dashed',
                 lw=1
             )
-            start_step = train_history['step'].values[-2]
+            learning_curve_start_step = train_history['step'].values[-2]
 
-        ax.set_title(f"{name}")
+        ax.set_title(print_name)
         ax.set_xlabel('Training steps')
         ax.set_xticks((0, 25000, 50000, 75000, 100000, 125000, 150000, 175000))
         ax.set_xticklabels((0, '', '', 75000, '', '', 150000, ''))
@@ -113,7 +113,7 @@ def get_args() -> argparse.ArgumentParser:
         metavar='DIR',
         default='results/models/upstream',
         type=str,
-        help='path to directory where models are stored '
+        help='path to directory where upstream models are stored '
              '(default: results/models/upstream)'
     )
     parser.add_argument(
@@ -129,4 +129,4 @@ def get_args() -> argparse.ArgumentParser:
 
 
 if __name__ == '__main__':
-    fig_upstream_performance_pretrained_lms()
+    sfig_upstream_performance_pretrained_lms()

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import os
 import argparse
 import pandas as pd
@@ -16,6 +17,7 @@ sns.set_theme(
 
 
 def fig_hyperopt(config=None) -> None:
+    """Script's main function; creates Figure 3 of the manuscript."""
 
     if config is None:
         config = vars(get_args().parse_args())
@@ -29,32 +31,31 @@ def fig_hyperopt(config=None) -> None:
         """,
         figsize=(10, 5),
     )
-    training_styles = ['autoencoder', 'CSM', 'BERT', 'NetBERT']
 
-    for hi, (training_style, axs, loss_label, name) in enumerate(
+    for hi, (name, print_name, loss_label, axs) in enumerate(
         zip(
-                training_styles,
+                ['autoencoder', 'CSM', 'BERT', 'NetBERT'],
+                ['Autoencoding', 'CSM', 'Seq-BERT', 'Net-BERT'],
+                [r'$L_{rec}$', r'$L_{rec}$', r'$L_{rec} + L_{cls}$', r'$L_{rec} + L_{cls}$'],
                 [
                     [fig_axs['A'], fig_axs['B']],
                     [fig_axs['C'], fig_axs['D']],
                     [fig_axs['E'], fig_axs['F']],
                     [fig_axs['G'], fig_axs['H']],
-                ],
-                [r'$L_{rec}$', r'$L_{rec}$', r'$L_{rec} + L_{cls}$', r'$L_{rec} + L_{cls}$'],
-                ['Autoencoding', 'CSM', 'Seq-BERT', 'Net-BERT']
+                ]
             )
         ):
-        hyperopt = [
+        hyperopt_path = [
             p for p in 
             os.listdir(config['hyperopt_dir'])
-            if f'-{training_style}' in p
+            if f'-{name}' in p
         ]
-        assert len(hyperopt) == 1, \
-            f'{training_style} should have exactly one path in {config["hyperopt_dir"]}'
-        hyperopt = hyperopt[0]
+        assert len(hyperopt_path) == 1, \
+            f'{name} should have exactly one path in {config["hyperopt_dir"]}'
+        hyperopt_path = hyperopt_path[0]
         hyperopt_path = os.path.join(
             config['hyperopt_dir'],
-            hyperopt
+            hyperopt_path
         )
         model_paths = [
             os.path.join(hyperopt_path, p)
@@ -101,9 +102,9 @@ def fig_hyperopt(config=None) -> None:
                 final_eval_loss[li, ei] = eval_history['loss'].values[-1]
 
                 # we are plotting the evaluation loss of the 
-                # largest Seq-BERT model variant separately
+                # largest Seq-BERT model variant separately;
                 # see sfig_training-curve-larges-sequence-BERT.py
-                if l==12 and e ==768 and name=='Seq-BERT':
+                if l==12 and e ==768 and name=='BERT':
                     continue
 
                 axs[0].plot(
@@ -129,28 +130,28 @@ def fig_hyperopt(config=None) -> None:
             annot_kws={'size': 8},
             ax=axs[1],
         )
-        axs[0].set_title(f"{name}")
+        axs[0].set_title(print_name)
         axs[0].set_xlabel('Training steps')
         axs[0].set_xticks((0, 50000, 100000, 150000, 200000))
         axs[0].set_xticklabels((0, '', 100000, '', 200000))
         axs[0].set_ylabel(f"Eval. loss ({loss_label})")
-        axs[0].legend(
-            loc='upper right',
-            ncol=2,
-            fontsize=6.5,
-            bbox_to_anchor=(1.1, 1.06)
-        )
         axs[1].set_title('Final eval. loss')
         axs[1].set_yticklabels(
             n_layers,
             rotation=0,
             fontweight='light'
         )
+        axs[0].legend(
+            loc='upper right',
+            ncol=2,
+            fontsize=6.5,
+            bbox_to_anchor=(1.1, 1.06)
+        )
         
         if hi == 0:
             axs[1].set_ylabel('# Layers')
         
-        if training_style != 'autoencoder':
+        if name != 'autoencoder':
             axs[1].set_xlabel('Embedding dim.\n(# Attn. heads)')
             axs[1].set_xticklabels(
                 [f'{e}\n({e//64})' for e in embedding_dims],

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import os
 import argparse
 import pandas as pd
@@ -15,6 +16,7 @@ sns.set_theme(
 
 
 def sfig_training_curve_seqBERT_large(config=None) -> None:
+    """Script's main function; creates Appendix Figure 1 of the manuscript."""
 
     if config is None:
         config = vars(get_args().parse_args())
@@ -47,7 +49,6 @@ def sfig_training_curve_seqBERT_large(config=None) -> None:
         color='k',
         linewidth=1
     )
-
     ax.set_title("Sequence-BERT\n(12 layers, 768 dim.)")
     ax.set_xlabel('Training steps')
     ax.set_xticks((0, 50000, 100000, 150000, 200000))
@@ -55,7 +56,6 @@ def sfig_training_curve_seqBERT_large(config=None) -> None:
     loss_label = r'$L_{rec} + L_{cls}$'
     ax.set_ylabel(f"Eval. loss ({loss_label})")
     ax.set_ylim(0.8, 1.6)
-    
     fig.tight_layout()
     fig.savefig(
         os.path.join(

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import os
 import argparse
 import pandas as pd
@@ -15,6 +16,7 @@ sns.set_theme(
 
 
 def fig_upstream_performance(config=None) -> None:
+    """Script's main function; creates Figure 4 of the manuscript."""
 
     if config is None:
         config = vars(get_args().parse_args())
@@ -25,27 +27,26 @@ def fig_upstream_performance(config=None) -> None:
         """
         ABCD
         """,
-        figsize=(10, 2),
+        figsize=(10, 3),
     )
 
-    training_styles = ['autoencoder', 'CSM', 'BERT', 'NetBERT']
-    for i, (training_style, ax, loss_label, name) in enumerate(
+    for i, (name, print_name, loss_label, ax) in enumerate(
         zip(
-                training_styles,
-                [fig_axs['A'], fig_axs['B'], fig_axs['C'], fig_axs['D']],
+                ['autoencoder', 'CSM', 'BERT', 'NetBERT'],
+                ['Autoencoding', 'CSM', 'Seq-BERT', 'Net-BERT'],
                 [r'$L_{rec}$', r'$L_{rec}$', r'$L_{rec} + L_{cls}$', r'$L_{rec} + L_{cls}$'],
-                ['Autoencoding', 'CSM', 'Seq-BERT', 'Net-BERT']
+                [fig_axs['A'], fig_axs['B'], fig_axs['C'], fig_axs['D']]                
             )
         ):
         upstream_model_dir = [
             p for p in 
             os.listdir(config['upstream_models_dir'])
-            if f'train-{training_style}' in p
+            if f'train-{name}' in p
             and 'warmup' not in p
             and 'Pretrained' not in p
         ]
         assert len(upstream_model_dir) == 1, \
-            f'{training_style} should have exactly one path in ' +\
+            f'{name} should have exactly one path in ' +\
             f'{config["upstream_models_dir"]}'
         upstream_model_dir = upstream_model_dir[0]
         upstream_model_dir = os.path.join(
@@ -80,7 +81,7 @@ def fig_upstream_performance(config=None) -> None:
             linestyle='dashed',
             lw=1
         )
-        ax.set_title(f"{name}")
+        ax.set_title(print_name)
         ax.set_xlabel('Training steps')
         ax.set_xticks((10000, 50000, 100000, 150000, 200000, 250000, 300000))
         ax.set_xticklabels((10000, '', '', '150000', '', '', 300000))

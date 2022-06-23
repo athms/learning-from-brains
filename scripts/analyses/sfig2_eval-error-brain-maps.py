@@ -14,45 +14,45 @@ from nilearn.datasets import fetch_atlas_difumo
 import nibabel as nb
 import sys
 script_path = os.path.dirname(os.path.realpath(__file__))
-sys.path.insert(0, f'{script_path}/../train')
-from scripts.train import make_model
+sys.path.insert(0, f'{script_path}/../')
+from train import make_model
 sys.path.insert(0, f'{script_path}/../../')
-from nit.batcher import make_batcher
-from nit.tools import plot_brain_map
+from src.batcher import make_batcher
+from src.tools import plot_brain_map
 
 
 def eval_error_brain_maps(config: Dict=None) -> None:
+    """Script's main function; computes brain map for 
+    reconstruction error of given upstream model in upstream 
+    validation data"""
     
     if config is None:
         config = vars(get_args().parse_args())
 
+    random.seed(config["seed"])
+    manual_seed(config["seed"])
     os.makedirs(
         config['error_brainmaps_dir'],
         exist_ok=True
     )
-
-    random.seed(config["seed"])
-    manual_seed(config["seed"])
-    
     path_model_config = os.path.join(
         config["model_dir"],
         'train_config.json'
     )
-    assert os.path.isfile(path_model_config),\
-        f'{path_model_config} does not exist'
-    
     path_tarfile_paths_split = os.path.join(
         config["model_dir"],
         'tarfile_paths_split.json'
     )
-    assert os.path.isfile(path_tarfile_paths_split),\
-        f'{path_tarfile_paths_split} does not exist'
-    
     path_pretrained_model = os.path.join(
         config["model_dir"],
         'model_final',
         "pytorch_model.bin"
     )
+
+    assert os.path.isfile(path_model_config),\
+        f'{path_model_config} does not exist'
+    assert os.path.isfile(path_tarfile_paths_split),\
+        f'{path_tarfile_paths_split} does not exist'
     assert os.path.isfile(path_pretrained_model),\
         f'{path_pretrained_model} does not exist'
 
@@ -63,13 +63,12 @@ def eval_error_brain_maps(config: Dict=None) -> None:
         model_config = json.load(f)
 
     model_config['pretrained_model'] = path_pretrained_model
-
-    error_map_path = os.path.join(
+    path_error_map = os.path.join(
         config['error_brainmaps_dir'],
         f'mean_eval_error_{model_config["training_style"]}.nii.gz'
     )
-
-    if not os.path.isfile(error_map_path):
+    
+    if not os.path.isfile(path_error_map):
         batcher = make_batcher(
             training_style=model_config["training_style"],
             sample_random_seq=model_config["sample_random_seq"],
@@ -96,15 +95,17 @@ def eval_error_brain_maps(config: Dict=None) -> None:
         )
         model = make_model(model_config=model_config)
         model.eval()
-        
         mean_error = np.zeros(1024)
-        region_sample_count = np.zeros(1024)
+        network_sample_count = np.zeros(1024)
+        print(
+            f'\ncomputing upstream reconstruction error brain map for {model_config["training_style"]}'
+        )
 
         for batch_i, batch in enumerate(eval_dataloader):
 
             if batch_i % 1000 == 0:
                 print(
-                    f'\tProcessing sample {batch_i} / {config["n_eval_samples"]}'
+                    f'\tprocessing sample {batch_i} / {config["n_eval_samples"]}'
                 )
 
             batch = {k: v[0] for k, v in batch.items()}
@@ -132,31 +133,32 @@ def eval_error_brain_maps(config: Dict=None) -> None:
                     )
 
             if 'modelling_mask' in batch:
+                # only compute error for masked inputs:
                 masking_idx = batch["modelling_mask"].detach().cpu().numpy()==1
                 prediction = np.zeros(batch["modelling_mask"].shape)
                 prediction[masking_idx] = outputs["outputs"].detach().cpu().numpy()[masking_idx]
-                inputs = np.zeros(batch["modelling_mask"].shape)
+                inputs = np.zeros_like(prediction)
                 inputs[masking_idx] = batch["masked_inputs"].detach().cpu().numpy()
-                
                 batch_error = np.absolute(prediction - inputs).sum(axis=(0, 1))
                 batch_error = np.nan_to_num(batch_error / masking_idx.sum(axis=(0, 1)))
-                region_idx = masking_idx.sum(axis=(0, 1)) != 0
-                mean_error[region_idx] += batch_error[region_idx]
-                region_sample_count[region_idx] += 1
+                network_idx = masking_idx.sum(axis=(0, 1)) != 0
+                mean_error[network_idx] += batch_error[network_idx]
+                network_sample_count[network_idx] += 1
 
             else:
+                # error for all input values:
                 prediction = outputs["outputs"].detach().cpu().numpy()
                 inputs = batch["inputs"].detach().cpu().numpy()
                 masking_idx = batch["attention_mask"].detach().cpu().numpy().astype(np.bool)
                 batch_error = np.absolute(prediction[masking_idx] - inputs[masking_idx])
                 batch_error = batch_error.mean(axis=0)
                 mean_error += batch_error
-                region_sample_count += 1
+                network_sample_count += 1
 
             if batch_i >= config['n_eval_samples']-1:
                 break
 
-        mean_error /= region_sample_count
+        mean_error /= network_sample_count
         difumo = fetch_atlas_difumo(
             dimension=1024,
             resolution_mm=2
@@ -178,14 +180,14 @@ def eval_error_brain_maps(config: Dict=None) -> None:
             region_signals=mean_error,
             maps_img=difumo.maps
         )
-        error_img_map.to_filename(error_map_path)
+        error_img_map.to_filename(path_error_map)
 
     else:
         print(
             '/!\ using existing L1-error image stored in '
-            f'{error_map_path}'
+            f'{path_error_map}'
         )
-        error_img_map = nb.load(error_map_path)
+        error_img_map = nb.load(path_error_map)
 
     plot_brain_map(
         img=error_img_map,
@@ -212,6 +214,8 @@ def get_args() -> argparse.ArgumentParser:
         metavar='DIR',
         type=str,
         help='path to directory where model is stored '
+             'for which reconstruction error brain map '
+             'is to be computed.'
     )
     parser.add_argument(
         '--error-brainmaps-dir',
@@ -226,7 +230,7 @@ def get_args() -> argparse.ArgumentParser:
         metavar='N',
         default=50000,
         type=int,
-        help='number of samples to draw for evaluation '
+        help='number of random samples to draw for evaluation '
              '(default: 50000)'
     )
     parser.add_argument(
@@ -246,7 +250,7 @@ def get_args() -> argparse.ArgumentParser:
     )
 
     return parser
-
+2
 
 if __name__ == '__main__':
 

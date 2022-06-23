@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3 
 
 import os
 import argparse
@@ -16,7 +16,8 @@ sns.set_theme(
 )
 
 
-def fig_upstream_data(config: Dict=None) -> None:
+def fig_upstream_data_overview(config: Dict=None) -> None:
+    """Script's main function; creates Figure 2 of the manuscript."""
 
     if config is None:
         config = vars(get_args().parse_args())
@@ -36,12 +37,12 @@ def fig_upstream_data(config: Dict=None) -> None:
     n_runs = []
     avg_n_runs = []
 
-    for dataset in datasets:
+    for ds in datasets:
         ds_files = [
             f for f in os.listdir(
                 os.path.join(
                     config["data_dir"],
-                    dataset
+                    ds
                 )
             )
             if f.endswith('.tar')
@@ -55,7 +56,7 @@ def fig_upstream_data(config: Dict=None) -> None:
         )
         n_subjects.append(len(subjects))
         ds_avg_n_runs = []
-        
+
         for subject in subjects:
             subject_files = [
                 f for f in ds_files
@@ -65,16 +66,15 @@ def fig_upstream_data(config: Dict=None) -> None:
 
         avg_n_runs.append(np.mean(ds_avg_n_runs))
         print(
-            f'{dataset}: {len(subjects)} subjects, {len(ds_files)} runs'
+            f'{ds}: {len(subjects)} subjects, {len(ds_files)} runs'
         )
 
     n_subjects = np.asarray(n_subjects)
-    avg_n_runs = np.asarray(avg_n_runs)
+    avg_n_runs = np.asarray(avg_n_runs) 
+    total_n_runs = np.sum([np.sum(n) for n in n_runs])
+    total_n_subjects = np.sum(n_subjects)
     print(
-        'Found {} subjects and {} runs in total'.format(
-            np.sum(n_subjects),
-            np.sum([np.sum(n) for n in n_runs])
-        )
+        f'Found {total_n_subjects} subjects and {total_n_runs} runs in total'
     )
 
     fig, ax = plt.subplots(
@@ -90,10 +90,10 @@ def fig_upstream_data(config: Dict=None) -> None:
         alpha=0.5,
         linewidth=0
     )
-    ax.set_title('{} upstream datasets'.format(int(n_subjects.size)))
+    ax.set_title(f'{int(n_subjects.size)} upstream datasets')
     ax.set_ylabel('# Runs per individual')
     ax.set_xlabel('# Individuals')
-    # inset axes
+    # inset axis
     x1, x2, y1, y2 = 0, 50, 0, 20
     ins_idx = np.logical_and(
         np.logical_and(
@@ -172,5 +172,4 @@ def get_args() -> argparse.ArgumentParser:
 
 
 if __name__ == '__main__':
-
-    fig_upstream_data()
+    fig_upstream_data_overview()
