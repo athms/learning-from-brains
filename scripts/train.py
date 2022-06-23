@@ -9,11 +9,12 @@ details on command line arguments.
 To train a model, multiple core components from ..src/ 
 are invoked:
 
-src/batcher: Build PyTorch dataloaders for given data.
-src/embedder: Embedding of inputs into embedding space.
-    Includes functionality for adding training tokens, 
-    masking, and training-style specific loss-functions.
-    Possible trainig styles:
+src/batcher: Building PyTorch dataloaders for given data.
+src/embedder: Embedding of inputs into embedding space, 
+    training-style specific addition of training tokens
+    and masking, and computation of training-style specific 
+    losses.
+    Valid training styles:
         - CSM (Causal Sequence Modeling)
         - BERT (Sequence-BERT)
         - NetBERT (Network-BERT)
@@ -25,14 +26,15 @@ src/decoder: Model architecture used for decoding / sequence modeling.
         - BERT
         - NetBERT
         - autoencoder
-        - PretrainedGPT2
-        - PretrainedBERT
         - LinearBaseline
-src/unembedder: Project output of decoder back to input space.
+        - PretrainedGPT2 (as provided by HuggingFace)
+        - PretrainedBERT (as provided by HuggingFace)
+src/unembedder: Projecting sequence output of decoder back 
+    to input space.
 src/trainer: Trainer for model; invokes instance of 
-    Hugging Face's Trainer class.
-src/model: Wrapper for model components (ie., embedder, decoder, unembedder).
-    See make_model() below for details.
+    Hugging Face's Trainer object.
+src/model: Build full model from components (ie., embedder, 
+    decoder, unembedder). See make_model() below for details.
 """
 
 import os
@@ -58,7 +60,8 @@ from src import tools
 
 def train(config: Dict=None) -> Trainer:
     """Model training according to config.
-        -> see get_args() for all command line arguments.
+        -> see get_args() below for all command 
+        line arguments.
     """
     
     if config is None:
@@ -101,7 +104,10 @@ def train(config: Dict=None) -> Trainer:
             print(
                 f'Resuming training from checkpoint-{last_checkpoint} in {resume_path}'
             )
-            config["resume_from"] = os.path.join(resume_path, f'checkpoint-{last_checkpoint}')
+            config["resume_from"] = os.path.join(
+                resume_path,
+                f'checkpoint-{last_checkpoint}'
+            )
 
         else:
             config_filepath = os.path.join(
@@ -313,7 +319,7 @@ def make_model(model_config: Dict=None):
         dropout=model_config["dropout"],
         t_r_precision=model_config["tr_precision"],
         max_t_r=model_config["tr_max"],
-        masking_rate=model_config["bert_masking_rate"],
+        masking_rate=model_config["masking_rate"],
         n_positions=model_config["n_positions"]
     )
     decoder = make_decoder(
@@ -420,7 +426,7 @@ def get_config(args: argparse.Namespace=None) -> Dict:
             args.run_name += f'_drp-{str(args.dropout).replace(".", "")}'
 
             if args.training_style not in {'decoding', 'autoencoder', 'CSM'}:
-                args.run_name += f'_msk-{str(args.bert_masking_rate).replace(".", "")}'
+                args.run_name += f'_msk-{str(args.masking_rate).replace(".", "")}'
 
         else:
             args.run_name += f'_train-{args.training_style}'
@@ -888,7 +894,7 @@ def get_args() -> argparse.ArgumentParser:
              'Gap is randomly sampled between --bert-seq-gap-min and --bert-seq-gap-max'
     )
     parser.add_argument(
-        '--bert-masking-rate',
+        '--masking-rate',
         metavar='FLOAT',
         default=0.2,
         type=float,
