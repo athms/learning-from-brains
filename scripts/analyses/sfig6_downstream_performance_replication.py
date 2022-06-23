@@ -2,12 +2,13 @@
 
 import os, sys
 import argparse
+from typing import Dict
 script_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, f'{script_path}')
 from fig5_downstream_performance import fig_downstream_performance
 
 
-def sfig_downstream_performance_replication(config=None) -> None:
+def sfig_downstream_performance_replication(config: Dict=None) -> None:
     """Script's main funtion; creates Appendix Figure 6 by wrapping
     fig_downstream_performance() from scripts/analyses/fig5_downstream-performance.py"""
 

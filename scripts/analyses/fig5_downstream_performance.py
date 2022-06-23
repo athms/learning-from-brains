@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import os
-from typing import Dict
+from typing import Dict, Tuple
 import argparse
 import pandas as pd
 import numpy as np
@@ -19,8 +19,8 @@ sns.set_theme(
 
 def fig_downstream_performance(
     config: Dict=None,
-    datasets=['HCP', 'ds002105'],
-    figname='fig5_downstream-performance.png'
+    datasets: Tuple[str, ...]=('HCP', 'ds002105'),
+    figname: str='fig5_downstream-performance.png'
     ) -> None:
     """Script's main function; creates Figure 5 of the manuscript."""
 

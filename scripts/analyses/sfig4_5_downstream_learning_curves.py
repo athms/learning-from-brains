@@ -2,6 +2,7 @@
 
 import os
 import argparse
+from typing import Dict, Tuple 
 import pandas as pd
 import numpy as np
 import itertools
@@ -20,9 +21,9 @@ sns.set_theme(
 
 
 def sfig_downstream_learning_curves(
-    config=None,
-    datasets=['HCP', 'ds002105'],
-    base_figname='sfig_downstream-learning-curves'
+    config: Dict=None,
+    datasets: Tuple[str, ...]=('HCP', 'ds002105'),
+    base_figname: str='sfig_downstream-learning-curves'
     ) -> None:
 
     if config is None:

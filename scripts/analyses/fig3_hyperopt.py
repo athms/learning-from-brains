@@ -2,6 +2,7 @@
 
 import os
 import argparse
+from typing import Dict
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,7 +17,7 @@ sns.set_theme(
 )
 
 
-def fig_hyperopt(config=None) -> None:
+def fig_hyperopt(config: Dict=None) -> None:
     """Script's main function; creates Figure 3 of the manuscript."""
 
     if config is None:

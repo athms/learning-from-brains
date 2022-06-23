@@ -2,6 +2,7 @@
 
 import os
 import argparse
+from typing import Dict
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -15,7 +16,7 @@ sns.set_theme(
 )
 
 
-def sfig_upstream_performance_pretrained_lms(config=None) -> None:
+def sfig_upstream_performance_pretrained_lms(config: Dict=None) -> None:
     """Script's main function; creates Appendix Figure 3 of the manuscript."""
 
     if config is None:

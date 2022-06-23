@@ -2,6 +2,7 @@
 
 import os
 import argparse
+from typing import Dict
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -15,7 +16,7 @@ sns.set_theme(
 )
 
 
-def fig_upstream_performance(config=None) -> None:
+def fig_upstream_performance(config: Dict=None) -> None:
     """Script's main function; creates Figure 4 of the manuscript."""
 
     if config is None:
