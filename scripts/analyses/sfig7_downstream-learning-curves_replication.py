@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
+import os, sys
 import argparse
+script_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, f'{script_path}')
 from sfig4_5_downstream_learning_curves import sfig_downstream_learning_curves
 
 
