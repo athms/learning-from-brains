@@ -59,7 +59,7 @@ def sfig_downstream_learning_curves(
 
         for i, (name, print_name) in enumerate(
             zip(
-                    ['autoencoder', 'GPT', 'BERT', 'NetBERT', 'LogisticRegression'],
+                    ['autoencoder', 'GPT', 'BERT', 'NetBERT', 'LinearBaseline'],
                     ['Autoencoding', 'CSM', 'Seq-BERT', 'Net-BERT', 'Linear Baseline']
                 )
             ):
