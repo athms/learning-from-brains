@@ -4,7 +4,7 @@ import os, sys
 import argparse
 script_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, f'{script_path}')
-from fig5_downstream_performance import fig_downstream_performance
+from fig5_downstream_performance.py import fig_downstream_performance
 
 
 def sfig_downstream_performance_replication(config=None) -> None:
