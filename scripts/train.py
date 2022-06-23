@@ -127,6 +127,7 @@ def train(config: Dict=None) -> Trainer:
         'autoencoder',
         'decoding'
     }, f'{config["training_style"]} is not supported.'
+    
     assert config["architecture"] in {
         'BERT',
         'NetBERT',
@@ -136,7 +137,7 @@ def train(config: Dict=None) -> Trainer:
         'PretrainedBERT',
         'LinearBaseline'
     }, f'{config["architecture"]} is not supported.'
-
+    
     path_tarfile_paths_split = os.path.join(
         config["log_dir"],
         'tarfile_paths_split.json'
@@ -174,12 +175,15 @@ def train(config: Dict=None) -> Trainer:
     train_tarfile_paths = tarfile_paths_split['train']
     validation_tarfile_paths = tarfile_paths_split['validation']
     test_tarfile_paths = tarfile_paths_split['test'] if 'test' in tarfile_paths_split else None
+    
     assert all(
         os.path.isfile(f) for f in train_tarfile_paths
     ), f'Some of the training tarfiles in {path_tarfile_paths_split} do not exist.'
+    
     assert all(
         os.path.isfile(f) for f in validation_tarfile_paths
     ), f'Some of the validation tarfiles in {path_tarfile_paths_split} do not exist.'
+    
     if test_tarfile_paths is not None:
         assert all(
             os.path.isfile(f) for f in test_tarfile_paths
@@ -209,6 +213,7 @@ def train(config: Dict=None) -> Trainer:
             tarfiles=test_tarfile_paths,
             length=config["test_steps"]*config["per_device_validation_batch_size"]
         )
+    
     else:
         test_dataset = None
 
@@ -413,6 +418,7 @@ def get_config(args: argparse.Namespace=None) -> Dict:
         args.run_name = f'{args.architecture}'
 
         if args.architecture != 'LinearBaseline':
+            
             if 'Pretrained' not in args.architecture:
                 args.run_name += f'_lrs-{args.num_hidden_layers}'
 
