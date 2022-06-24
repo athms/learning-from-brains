@@ -120,4 +120,4 @@ This code was written by a single person as a research project; not by a team of
 
 I am currently still in the process of setting-up / testing this repository; cleaning up the code has likely introduced minor bugs here and there. 
 
-If you encounter any of these bugs, please open-up a respective GitHub Issue; I will do my best to fix them!
+If you encounter any of these bugs, please open a respective GitHub Issue; I will do my best to fix them in time!
