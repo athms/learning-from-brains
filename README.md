@@ -7,7 +7,7 @@ Thomas, A. W., Ré, C., & Poldrack, R. A. (2022). Self-Supervised Learning Of Br
 
 ## About
 
-![Alt text](results/figures/fig1_modeling-frameworks.png?raw=true "Learning frameworks")
+![Learning frameworks](results/figures/fig1_modelling-frameworks.png)
 
 Self-supervised learning techniques are celebrating immense success in natural language processing (NLP) by enabling models to learn from broad language data at unprecedented scales. Here, we aim to leverage the success of these techniques for mental state decoding, where researchers aim to identify specific mental states (such as an individual’s experience of anger or happiness) from brain activity. To this end, we have devised a set of novel self-supervised learning frameworks for neuroimaging data based on prominent learning frameworks in NLP. At their core, these frameworks learn the dynamics of brain activity by modeling sequences of activity akin to how NLP models sequences of text. 
 
@@ -71,9 +71,9 @@ We use [WebDataset](https://github.com/webdataset/webdataset) to read data durin
 
 **Upstream:** All upstream data contain three core entries for I) the parcelated BOLD data (`bold.pyd`), II) its repetition time (`t_r.pyd`), and III) a key (`__key__`) indicating the specific subject / task / run that this .tar file corresponds to. 
 
-**Downstream:** Each .tar file of the two downstream datasets contains one sample for each trial of its experiment run. In addition to the three entries listed for the upstream data, each trail also contains information describing the associated mental state. In our downstream adapatation analyses, we utilize the `task_label.pyd` (MDTB data) and `label_across_tasks.pyd` (HCP data) entries to assign numerical labels to each mental state during training. Note that the MDTB data is indicated with its OpenNeuro identifier (`ds002105`) in the `data/downstream/` directory. 
+**Downstream:** Each .tar file of the two downstream datasets contains one sample for each trial of its experiment run. In addition to the three entries listed for the upstream data, each trial also contains information describing the associated mental state. In our downstream adapatation analyses, we utilize the `task_label.pyd` (MDTB data) and `label_across_tasks.pyd` (HCP data) entries to assign numerical labels to each mental state during training. Note that the MDTB data is indicated with its OpenNeuro identifier (`ds002105`) in the `data/downstream/` directory. 
 
-For details on the additional preprocessing applied to fmriprep's derivatives for each dataset, see the scripts contained in `scripts/dataprep/`.
+For details on the additional preprocessing applied to [fmriprep](https://fmriprep.org/en/stable/)'s derivatives for each dataset, see the scripts contained in `scripts/dataprep/`.
 
 
 ## Installation 
@@ -113,7 +113,7 @@ python3 scripts/train.py \
     --log-every-n-steps 1000
 ```
 
-Specifically, this will train the model on the data of `11` individuals contained in `data/downstream/ds002105`, while using the data of 3 and 9 other individuals for validation and testing respectively. During training, the model will learn to decode the 26 mental state labels encoded in the `task_label.pyd` entries of the data .tar files from the respective `bold.pyd` data of the same files. The model will be trained for 10,000 training steps at a mini-batch size of 64 samples per used training device (ie., GPU) at a learning rate of 1e-4 with the AdamW optimizer of the [HuggingFace transformers](https://huggingface.co/docs/transformers/index) library. At every 1000th training step, the model's performance will be evaluated and stored in the specified `--log-dir`.
+Specifically, this will train the model on the data of 11 individuals contained in `data/downstream/ds002105`, while using the data of 3 and 9 other individuals for validation and testing respectively. During training, the model will learn to decode the 26 mental state labels encoded in the `task_label.pyd` entries of the data .tar files from the respective `bold.pyd` data of the same files. The model will be trained for 10,000 training steps at a mini-batch size of 64 samples per used training device (ie., GPU) at a learning rate of 1e-4 with the [AdamW](https://huggingface.co/docs/transformers/main_classes/optimizer_schedules) optimizer of the [HuggingFace transformers](https://huggingface.co/docs/transformers/index) library. At every 1000th training step, the model's performance will be evaluated and stored in the specified `--log-dir`.
 
 
 ## When you encounter issues
@@ -122,4 +122,4 @@ This code was written by a single person as a research project; not by a team of
 
 I am currently still in the process of setting-up / testing this repository; cleaning up the code has likely introduced minor bugs here and there. 
 
-If you encounter any of these bugs, please open-up a respective Issue in this repository; I will do my best to fix them!
+If you encounter any of these bugs, please open-up a respective GitHub Issue; I will do my best to fix them!
