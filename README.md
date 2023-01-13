@@ -84,7 +84,9 @@ This repository provides three main ways to install all required dependencies:
 - [Docker](https://www.docker.com/) with the provided [Dockerfile](Dockerfile)
 - [pip](https://pypi.org/project/pip/) with the provided [requirements.txt](requirements.txt) file
 
-Note that this code relies **heavily** on [PyTorch](https://pytorch.org/) and the [HuggingFace transformers](https://huggingface.co/docs/transformers/index) library for model training and the creation of the used DL model architectures.
+Our code relies **heavily** on [PyTorch](https://pytorch.org/) and the [HuggingFace transformers](https://huggingface.co/docs/transformers/index) library.
+
+To download the [provided pre-trained model weights](https://github.com/athms/learning-from-brains/tree/master/results/models/upstream), [git-lfs](https://git-lfs.com) needs to be installed. 
 
 
 ## Basic usage
