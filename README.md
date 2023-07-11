@@ -67,6 +67,8 @@ Find below an overview of the repository organization:
 
 ## Data
 
+Please download the data from [figshare](https://figshare.com/projects/Self-Supervised_Learning_of_Brain_Dynamics_from_Broad_Neuroimaging_Data/172176) and place them in the directory structure shown above
+
 We use [WebDataset](https://github.com/webdataset/webdataset) to read data during training. To this end, we have converted each fMRI run of the included datasets to a .tar file with the following attributes:
 
 **Upstream:** All upstream data contain three core entries for I) the parcelated BOLD data (`bold.pyd`), II) its repetition time (`t_r.pyd`), and III) a key (`__key__`) indicating the specific subject / task / run that this .tar file corresponds to. 
@@ -85,8 +87,6 @@ This repository provides three main ways to install all required dependencies:
 - [pip](https://pypi.org/project/pip/) with the provided [requirements.txt](requirements.txt) file
 
 Our code relies **heavily** on [PyTorch](https://pytorch.org/) and the [HuggingFace transformers](https://huggingface.co/docs/transformers/index) library.
-
-To download the [provided pre-trained model weights](https://github.com/athms/learning-from-brains/tree/master/results/models/upstream), [git-lfs](https://git-lfs.com) needs to be installed. 
 
 
 ## Basic usage
@@ -115,6 +115,10 @@ python3 scripts/train.py \
 
 Specifically, this will train the model on the data of 11 individuals contained in `data/downstream/ds002105`, while using the data of 3 and 9 other individuals for validation and testing respectively. During training, the model will learn to decode the 26 mental state labels encoded in the `task_label.pyd` entries of the data .tar files from the respective `bold.pyd` data of the same files. The model will be trained for 10,000 training steps at a mini-batch size of 64 samples per used training device (ie., GPU) at a learning rate of 1e-4 with the [AdamW](https://huggingface.co/docs/transformers/main_classes/optimizer_schedules) optimizer of the [HuggingFace transformers](https://huggingface.co/docs/transformers/index) library. At every 1000th training step, the model's performance will be evaluated and stored in the specified `--log-dir`.
 
+
+## Pre-trained models
+
+Please download the pre-trained models from [figshare](https://figshare.com/projects/Self-Supervised_Learning_of_Brain_Dynamics_from_Broad_Neuroimaging_Data/172176) and place them in `results/models` as shown in the directory structure above.
 
 ## When you encounter issues
 
