@@ -67,7 +67,7 @@ Find below an overview of the repository organization:
 
 ## Data
 
-Please download the data from [figshare](https://figshare.com/projects/Self-Supervised_Learning_of_Brain_Dynamics_from_Broad_Neuroimaging_Data/172176) and place them in the directory structure shown above
+Please download the data from [figshare](https://figshare.com/projects/Self-Supervised_Learning_of_Brain_Dynamics_from_Broad_Neuroimaging_Data/172176) and place them in the directory structure shown above.
 
 We use [WebDataset](https://github.com/webdataset/webdataset) to read data during training. To this end, we have converted each fMRI run of the included datasets to a .tar file with the following attributes:
 
